@@ -20,7 +20,6 @@ import { Video } from 'expo-av';
 
 import SearchBar from '../../components/common/SearchBar';
 import AccessibleButton from '../../components/common/AccessibleButton';
-import Card from '../../components/common/Card';
 import { COLORS, SPACING, CAMPUS_CONFIG, BUILDING_CATEGORIES } from '../../utils/constants';
 import { Building, Coordinate, NavigationRoute, Room } from '../../types';
 import {
