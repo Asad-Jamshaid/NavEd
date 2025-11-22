@@ -272,7 +272,7 @@ export default function CampusMapScreen() {
                   onPress={() => selectSearchResult(result)}
                   accessible={true}
                   accessibilityRole="button"
-                  accessibilityLabel={'name' in result ? result.name : result.roomNumber}
+                  accessibilityLabel={'name' in result ? result.name : (result as Room).roomNumber}
                 >
                   <MaterialIcons
                     name={'floors' in result ? 'business' : 'room'}
@@ -281,7 +281,7 @@ export default function CampusMapScreen() {
                   />
                   <View style={styles.searchResultText}>
                     <Text style={[styles.searchResultTitle, highContrast && styles.textHighContrast]}>
-                      {'name' in result ? result.name : `Room ${result.roomNumber}`}
+                      {'name' in result ? result.name : `Room ${(result as Room).roomNumber}`}
                     </Text>
                     {'floors' in result && (
                       <Text style={styles.searchResultSubtitle}>

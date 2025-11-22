@@ -161,7 +161,7 @@ function AppContent() {
       />
       <NavigationContainer
         theme={{
-          dark: darkMode || highContrast,
+          dark: !!(darkMode || highContrast),
           colors: {
             primary: highContrast ? '#FFFF00' : COLORS.primary,
             background: highContrast ? '#000000' : darkMode ? '#121212' : COLORS.background,
@@ -169,12 +169,6 @@ function AppContent() {
             text: highContrast ? '#FFFFFF' : darkMode ? '#FFFFFF' : COLORS.black,
             border: highContrast ? '#FFFFFF' : COLORS.grayLight,
             notification: COLORS.error,
-          },
-          fonts: {
-            regular: { fontFamily: 'System', fontWeight: '400' },
-            medium: { fontFamily: 'System', fontWeight: '500' },
-            bold: { fontFamily: 'System', fontWeight: '700' },
-            heavy: { fontFamily: 'System', fontWeight: '900' },
           },
         }}
       >

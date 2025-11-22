@@ -283,7 +283,6 @@ export async function schedulePeakHourAlert(
         data: { parkingLotId, type: 'peak_hour_alert' },
       },
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
         date: alertDate,
       },
       identifier: `${parkingLotId}-peak-${peakHour.dayOfWeek}-${peakHour.startHour}`,

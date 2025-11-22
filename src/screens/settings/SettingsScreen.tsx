@@ -35,7 +35,7 @@ export default function SettingsScreen() {
   // State
   const [accessibilityMode, setAccessibilityMode] = useState(userPrefs?.accessibilityMode || false);
   const [voiceGuidance, setVoiceGuidance] = useState(userPrefs?.voiceGuidance || false);
-  const [hapticFeedback, setHapticFeedback] = useState(userPrefs?.hapticFeedback || true);
+  const [hapticFeedback, setHapticFeedback] = useState<boolean>(userPrefs?.hapticFeedback ?? true);
   const [highContrast, setHighContrast] = useState(userPrefs?.highContrast || false);
   const [fontSize, setFontSize] = useState<'small' | 'medium' | 'large' | 'xlarge'>(
     userPrefs?.fontSize || 'medium'
@@ -157,8 +157,8 @@ export default function SettingsScreen() {
                 minimumValue={ACCESSIBILITY_CONFIG.minSpeechRate}
                 maximumValue={ACCESSIBILITY_CONFIG.maxSpeechRate}
                 value={speechRate}
-                onValueChange={setSpeechRate}
-                onSlidingComplete={value => {
+                onValueChange={(value: number) => setSpeechRate(value)}
+                onSlidingComplete={(value: number) => {
                   setSpeechRate(value);
                   saveAccessibility({ speechRate: value });
                 }}
@@ -360,7 +360,7 @@ export default function SettingsScreen() {
       </Card>
 
       {/* Clear Data */}
-      <Card style={[styles.card, styles.dangerCard]} highContrast={highContrast}>
+      <Card style={{...styles.card, ...styles.dangerCard}} highContrast={highContrast}>
         <AccessibleButton
           title="Clear All Data"
           icon="delete-forever"
