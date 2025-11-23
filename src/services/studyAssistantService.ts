@@ -125,32 +125,24 @@ export async function extractTextFromDocument(doc: Document): Promise<string> {
       return content;
     }
 
-    // For PDFs and other formats, we'll use a simple approach
-    // In production, you could use pdf-parse or similar
-    // For now, we'll prompt users to copy-paste text or use txt files
+    // For PDFs and other formats, we provide a simple approach
+    // Users should use .txt files for best results
+    // For production, consider using a PDF library
 
-    // Read as base64 and attempt basic extraction
-    const base64 = await FileSystem.readAsStringAsync(doc.uri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-
-    // For PDF, try to extract text markers (basic approach)
-    if (doc.type === 'pdf') {
-      // This is a simplified extraction - for production use a proper PDF library
-      const decoded = atob(base64);
-      const textMatches = decoded.match(/\(([^)]+)\)/g);
-      if (textMatches) {
-        return textMatches
-          .map(m => m.slice(1, -1))
-          .join(' ')
-          .replace(/\\n/g, '\n');
+    try {
+      // Try to read as text first (might work for some formats)
+      const content = await FileSystem.readAsStringAsync(doc.uri);
+      if (content && content.length > 100) {
+        return content;
       }
+    } catch {
+      // File is binary, cannot read as text
     }
 
-    return `Document loaded: ${doc.name}. Please use the chat to ask questions about your document.`;
+    return `Document loaded: ${doc.name}. For best results with AI features, please use .txt files. You can copy text from your PDF and paste it into a text file.`;
   } catch (error) {
     console.error('Error extracting text:', error);
-    return `Document: ${doc.name}`;
+    return `Document: ${doc.name}. Unable to extract text. Please try using a .txt file.`;
   }
 }
 

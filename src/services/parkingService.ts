@@ -229,21 +229,24 @@ function generateRecommendation(occupancy: number, lotName: string): string {
 // FREE with Expo Push Notifications
 // ==========================================
 export async function setupParkingAlerts() {
-  const { status } = await Notifications.requestPermissionsAsync();
-  if (status !== 'granted') {
-    console.log('Notification permissions not granted');
-    return;
-  }
+  try {
+    const { status } = await Notifications.requestPermissionsAsync();
+    if (status !== 'granted') {
+      console.log('Notification permissions not granted');
+      return;
+    }
 
-  // Configure notification handler
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-      priority: Notifications.AndroidNotificationPriority.HIGH,
-    }),
-  });
+    // Configure notification handler
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+  } catch (error) {
+    console.log('Error setting up parking alerts:', error);
+  }
 }
 
 export async function schedulePeakHourAlert(

@@ -13,14 +13,13 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { Video, ResizeMode } from 'expo-av';
+import { Video } from 'expo-av';
 
 import SearchBar from '../../components/common/SearchBar';
 import AccessibleButton from '../../components/common/AccessibleButton';
-import Card from '../../components/common/Card';
 import { COLORS, SPACING, CAMPUS_CONFIG, BUILDING_CATEGORIES } from '../../utils/constants';
 import { Building, Coordinate, NavigationRoute, Room } from '../../types';
 import {
@@ -202,7 +201,6 @@ export default function CampusMapScreen() {
       <MapView
         ref={mapRef}
         style={styles.map}
-        provider={PROVIDER_DEFAULT}
         initialRegion={{
           ...CAMPUS_CONFIG.center,
           latitudeDelta: 0.01,
@@ -476,7 +474,7 @@ export default function CampusMapScreen() {
               source={{ uri: videoUrl }}
               style={styles.video}
               useNativeControls
-              resizeMode={ResizeMode.CONTAIN}
+              resizeMode="contain"
               shouldPlay
             />
           ) : (

@@ -136,12 +136,24 @@ function AppContent() {
 
   const initializeApp = async () => {
     try {
-      // Initialize services
-      await Promise.all([
-        initializeAccessibility(),
-        setupParkingAlerts(),
-        loadApiKeys(),
-      ]);
+      // Initialize services individually with error handling
+      try {
+        await initializeAccessibility();
+      } catch (e) {
+        console.log('Accessibility init error:', e);
+      }
+
+      try {
+        await setupParkingAlerts();
+      } catch (e) {
+        console.log('Parking alerts init error:', e);
+      }
+
+      try {
+        await loadApiKeys();
+      } catch (e) {
+        console.log('API keys init error:', e);
+      }
     } catch (error) {
       console.error('Error initializing app:', error);
     } finally {
