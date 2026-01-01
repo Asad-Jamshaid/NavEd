@@ -242,6 +242,9 @@ export async function setupParkingAlerts() {
         shouldShowAlert: true,
         shouldPlaySound: true,
         shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+        priority: Notifications.AndroidNotificationPriority.HIGH,
       }),
     });
   } catch (error) {
@@ -286,9 +289,9 @@ export async function schedulePeakHourAlert(
         data: { parkingLotId, type: 'peak_hour_alert' },
       },
       trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
         date: alertDate,
-      },
-      identifier: `${parkingLotId}-peak-${peakHour.dayOfWeek}-${peakHour.startHour}`,
+      },      identifier: `${parkingLotId}-peak-${peakHour.dayOfWeek}-${peakHour.startHour}`,
     });
   }
 }

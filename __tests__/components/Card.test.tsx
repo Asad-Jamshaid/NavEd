@@ -135,8 +135,9 @@ describe('Card Component', () => {
 
   describe('High Contrast Mode', () => {
     test('should apply high contrast styles', () => {
+      // High contrast is now handled by theme system, not a prop
       const { getByLabelText } = render(
-        <Card title="High Contrast" highContrast={true}>
+        <Card title="High Contrast">
           <Text>Content</Text>
         </Card>
       );
@@ -157,9 +158,9 @@ describe('Card Component', () => {
       expect(getByLabelText('Elevated Card')).toBeTruthy();
     });
 
-    test('should not apply elevation when elevated is false', () => {
+    test('should not apply elevation when variant is flat', () => {
       const { getByLabelText } = render(
-        <Card title="Flat Card" elevated={false}>
+        <Card title="Flat Card" variant="flat">
           <Text>Content</Text>
         </Card>
       );

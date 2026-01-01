@@ -1,6 +1,6 @@
 // ==========================================
-// Study Assistant Screen - RAG-based LLM Chatbot
-// Uses FREE APIs: Gemini, Groq, HuggingFace
+// Study Assistant Screen - Modern Minimal Design
+// RAG-based LLM Chatbot with Gemini API
 // ==========================================
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -15,21 +15,22 @@ import {
   Platform,
   Modal,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import AccessibleButton from '../../components/common/AccessibleButton';
-import Card from '../../components/common/Card';
-import { COLORS, SPACING, BORDER_RADIUS, ACCESSIBILITY_CONFIG } from '../../utils/constants';
-import { Document, ChatMessage, StudyPlan, Quiz, Assignment } from '../../types';
+import Card, { SimpleCard } from '../../components/common/Card';
+import { NoDocumentsEmpty } from '../../components/common/EmptyState';
+import { CardSkeleton } from '../../components/common/LoadingSkeleton';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useApp } from '../../contexts/AppContext';
+import { Document, ChatMessage, StudyPlan, Quiz } from '../../types';
 import {
   pickDocument,
   extractTextFromDocument,
   chatWithDocument,
   generateStudyPlan,
   generateQuiz,
-  generateAssignment,
   saveDocument,
   getDocuments,
   deleteDocument,
@@ -39,9 +40,9 @@ import {
   loadApiKeys,
 } from '../../services/studyAssistantService';
 import { speak, triggerHaptic } from '../../services/accessibilityService';
-import { useApp } from '../../contexts/AppContext';
 
 export default function StudyAssistantScreen() {
+  const { theme } = useTheme();
   const { state } = useApp();
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -52,6 +53,7 @@ export default function StudyAssistantScreen() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingDocs, setIsLoadingDocs] = useState(true);
   const [showDocuments, setShowDocuments] = useState(true);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
@@ -63,7 +65,6 @@ export default function StudyAssistantScreen() {
   const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({});
 
   const accessibilityMode = state.user?.preferences.accessibilityMode;
-  const highContrast = state.user?.preferences.highContrast;
 
   // Load documents and API keys on mount
   useEffect(() => {
@@ -72,11 +73,14 @@ export default function StudyAssistantScreen() {
 
   const loadData = async () => {
     try {
+      setIsLoadingDocs(true);
       await loadApiKeys();
       const docs = await getDocuments();
       setDocuments(docs);
     } catch (error) {
       console.error('Error loading data:', error);
+    } finally {
+      setIsLoadingDocs(false);
     }
   };
 
@@ -110,9 +114,9 @@ export default function StudyAssistantScreen() {
           speak(`Document ${doc.name} uploaded successfully`);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading document:', error);
-      Alert.alert('Upload Error', 'Failed to upload document. Please try again.');
+      Alert.alert('Upload Error', error.message || 'Failed to upload document. Please try again.');
     }
   };
 
@@ -186,12 +190,13 @@ export default function StudyAssistantScreen() {
     };
 
     setChatMessages(prev => [...prev, userMessage]);
+    const currentInput = inputText.trim();
     setInputText('');
     setIsLoading(true);
 
     try {
       const response = await chatWithDocument(
-        userMessage.content,
+        currentInput,
         documentText,
         chatMessages
       );
@@ -221,7 +226,9 @@ export default function StudyAssistantScreen() {
       }]);
     } finally {
       setIsLoading(false);
-      scrollViewRef.current?.scrollToEnd({ animated: true });
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
     }
   };
 
@@ -293,15 +300,15 @@ export default function StudyAssistantScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, highContrast && styles.containerHighContrast]}
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={90}
     >
       {/* Document List View */}
       {showDocuments && (
         <View style={styles.documentsView}>
-          <View style={styles.header}>
-            <Text style={[styles.headerTitle, highContrast && styles.textHighContrast]}>
+          <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
+            <Text style={[styles.headerTitle, { color: theme.colors.textPrimary }]}>
               Study Assistant
             </Text>
             <TouchableOpacity
@@ -311,72 +318,92 @@ export default function StudyAssistantScreen() {
               accessibilityRole="button"
               accessibilityLabel="API Settings"
             >
-              <MaterialIcons name="settings" size={24} color={COLORS.gray} />
+              <MaterialIcons name="settings" size={24} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.documentsList}>
+          <ScrollView style={styles.documentsList} showsVerticalScrollIndicator={false}>
             {/* Upload Card */}
             <Card
               onPress={handleUploadDocument}
-              style={styles.uploadCard}
-              highContrast={highContrast}
+              variant="elevated"
+              style={StyleSheet.flatten([styles.uploadCard, { borderColor: theme.colors.primary, borderStyle: 'dashed' }])}
               accessibilityLabel="Upload document"
               accessibilityHint="Tap to upload a PDF, Word, or text document"
             >
               <View style={styles.uploadContent}>
-                <MaterialIcons name="cloud-upload" size={48} color={COLORS.primary} />
-                <Text style={[styles.uploadTitle, highContrast && styles.textHighContrast]}>
+                <View style={[styles.uploadIconContainer, { backgroundColor: `${theme.colors.primary}15` }]}>
+                  <MaterialIcons name="cloud-upload" size={48} color={theme.colors.primary} />
+                </View>
+                <Text style={[styles.uploadTitle, { color: theme.colors.textPrimary }]}>
                   Upload Document
                 </Text>
-                <Text style={styles.uploadSubtitle}>
+                <Text style={[styles.uploadSubtitle, { color: theme.colors.textSecondary }]}>
                   PDF, Word, or Text files up to 10MB
                 </Text>
               </View>
             </Card>
 
-            {/* Documents */}
-            {documents.length > 0 && (
+            {/* Loading State */}
+            {isLoadingDocs && (
               <>
-                <Text style={[styles.sectionTitle, highContrast && styles.textHighContrast]}>
+                <CardSkeleton />
+                <CardSkeleton />
+              </>
+            )}
+
+            {/* Empty State */}
+            {!isLoadingDocs && documents.length === 0 && (
+              <NoDocumentsEmpty onUpload={handleUploadDocument} />
+            )}
+
+            {/* Documents */}
+            {!isLoadingDocs && documents.length > 0 && (
+              <>
+                <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>
                   Your Documents
                 </Text>
                 {documents.map(doc => (
                   <Card
                     key={doc.id}
                     icon="description"
-                    iconColor={COLORS.primary}
+                    iconColor={theme.colors.primary}
                     title={doc.name}
                     subtitle={`${(doc.size / 1024).toFixed(1)} KB • ${new Date(doc.uploadedAt).toLocaleDateString()}`}
                     onPress={() => handleSelectDocument(doc)}
+                    variant="elevated"
                     style={styles.documentCard}
-                    highContrast={highContrast}
+                    headerRight={
+                      <TouchableOpacity
+                        style={styles.deleteButton}
+                        onPress={() => handleDeleteDocument(doc.id)}
+                        accessible={true}
+                        accessibilityRole="button"
+                        accessibilityLabel="Delete document"
+                      >
+                        <MaterialIcons name="delete-outline" size={20} color={theme.colors.error} />
+                      </TouchableOpacity>
+                    }
                     accessibilityLabel={doc.name}
                     accessibilityHint="Tap to open document for study"
                   >
-                    <TouchableOpacity
-                      style={styles.deleteButton}
-                      onPress={() => handleDeleteDocument(doc.id)}
-                      accessible={true}
-                      accessibilityRole="button"
-                      accessibilityLabel="Delete document"
-                    >
-                      <MaterialIcons name="delete-outline" size={20} color={COLORS.error} />
-                    </TouchableOpacity>
+                    <View />
                   </Card>
                 ))}
               </>
             )}
 
             {/* Free API Info */}
-            <Card style={styles.infoCard} highContrast={highContrast}>
+            <SimpleCard variant="flat" style={StyleSheet.flatten([styles.infoCard, { backgroundColor: `${theme.colors.info}10` }])}>
               <View style={styles.infoContent}>
-                <MaterialIcons name="info-outline" size={24} color={COLORS.info} />
+                <View style={[styles.infoIcon, { backgroundColor: `${theme.colors.info}15` }]}>
+                  <MaterialIcons name="info-outline" size={24} color={theme.colors.info} />
+                </View>
                 <View style={styles.infoText}>
-                  <Text style={[styles.infoTitle, highContrast && styles.textHighContrast]}>
+                  <Text style={[styles.infoTitle, { color: theme.colors.textPrimary }]}>
                     Free AI Features
                   </Text>
-                  <Text style={styles.infoDesc}>
+                  <Text style={[styles.infoDesc, { color: theme.colors.textSecondary }]}>
                     Get a FREE API key from:{'\n'}
                     • Google AI Studio (Gemini){'\n'}
                     • Groq Console{'\n'}
@@ -385,7 +412,7 @@ export default function StudyAssistantScreen() {
                   </Text>
                 </View>
               </View>
-            </Card>
+            </SimpleCard>
           </ScrollView>
         </View>
       )}
@@ -394,7 +421,7 @@ export default function StudyAssistantScreen() {
       {!showDocuments && activeDocument && (
         <View style={styles.chatView}>
           {/* Chat Header */}
-          <View style={[styles.chatHeader, highContrast && styles.chatHeaderHighContrast]}>
+          <View style={[styles.chatHeader, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
             <TouchableOpacity
               onPress={() => setShowDocuments(true)}
               style={styles.backButton}
@@ -402,10 +429,10 @@ export default function StudyAssistantScreen() {
               accessibilityRole="button"
               accessibilityLabel="Back to documents"
             >
-              <MaterialIcons name="arrow-back" size={24} color={highContrast ? '#FFFFFF' : COLORS.black} />
+              <MaterialIcons name="arrow-back" size={24} color={theme.colors.textPrimary} />
             </TouchableOpacity>
             <View style={styles.chatHeaderInfo}>
-              <Text style={[styles.chatDocName, highContrast && styles.textHighContrast]} numberOfLines={1}>
+              <Text style={[styles.chatDocName, { color: theme.colors.textPrimary }]} numberOfLines={1}>
                 {activeDocument.name}
               </Text>
             </View>
@@ -415,7 +442,7 @@ export default function StudyAssistantScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={styles.quickActions}
+            style={[styles.quickActions, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}
             contentContainerStyle={styles.quickActionsContent}
           >
             <AccessibleButton
@@ -441,7 +468,7 @@ export default function StudyAssistantScreen() {
               variant="outline"
               onPress={() => {
                 setInputText('Summarize this document in bullet points');
-                handleSendMessage();
+                setTimeout(() => handleSendMessage(), 100);
               }}
               disabled={isLoading}
             />
@@ -452,45 +479,52 @@ export default function StudyAssistantScreen() {
             ref={scrollViewRef}
             style={styles.messagesContainer}
             contentContainerStyle={styles.messagesContent}
+            showsVerticalScrollIndicator={false}
           >
             {chatMessages.map(message => (
               <View
                 key={message.id}
                 style={[
                   styles.messageBubble,
-                  message.role === 'user' ? styles.userMessage : styles.assistantMessage,
-                  highContrast && (message.role === 'user' ? styles.userMessageHighContrast : styles.assistantMessageHighContrast),
+                  message.role === 'user' 
+                    ? [styles.userMessage, { backgroundColor: theme.colors.primary }]
+                    : [styles.assistantMessage, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }],
                 ]}
               >
                 <Text
                   style={[
                     styles.messageText,
-                    message.role === 'user' && styles.userMessageText,
-                    highContrast && styles.textHighContrast,
+                    { color: message.role === 'user' ? theme.colors.textInverse : theme.colors.textPrimary },
                   ]}
                 >
                   {message.content}
                 </Text>
-                <Text style={styles.messageTime}>
+                <Text style={[styles.messageTime, { color: theme.colors.textTertiary }]}>
                   {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </Text>
               </View>
             ))}
 
             {isLoading && (
-              <View style={[styles.messageBubble, styles.assistantMessage]}>
-                <ActivityIndicator size="small" color={COLORS.primary} />
-                <Text style={styles.thinkingText}>Thinking...</Text>
+              <View style={[styles.messageBubble, styles.assistantMessage, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                <Text style={[styles.thinkingText, { color: theme.colors.textSecondary }]}>Thinking...</Text>
               </View>
             )}
           </ScrollView>
 
           {/* Input */}
-          <View style={[styles.inputContainer, highContrast && styles.inputContainerHighContrast]}>
+          <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border }]}>
             <TextInput
-              style={[styles.textInput, highContrast && styles.textInputHighContrast]}
+              style={[
+                styles.textInput,
+                {
+                  backgroundColor: theme.colors.surfaceVariant,
+                  color: theme.colors.textPrimary,
+                  borderRadius: theme.borderRadius.lg,
+                },
+              ]}
               placeholder="Ask about your document..."
-              placeholderTextColor={COLORS.gray}
+              placeholderTextColor={theme.colors.textTertiary}
               value={inputText}
               onChangeText={setInputText}
               multiline
@@ -500,7 +534,13 @@ export default function StudyAssistantScreen() {
               accessibilityHint="Type your question about the document"
             />
             <TouchableOpacity
-              style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+              style={[
+                styles.sendButton,
+                {
+                  backgroundColor: inputText.trim() ? theme.colors.primary : theme.colors.border,
+                  borderRadius: theme.borderRadius.full,
+                },
+              ]}
               onPress={handleSendMessage}
               disabled={!inputText.trim() || isLoading}
               accessible={true}
@@ -509,8 +549,8 @@ export default function StudyAssistantScreen() {
             >
               <MaterialIcons
                 name="send"
-                size={24}
-                color={inputText.trim() ? COLORS.white : COLORS.gray}
+                size={20}
+                color={inputText.trim() ? theme.colors.textInverse : theme.colors.textTertiary}
               />
             </TouchableOpacity>
           </View>
@@ -525,11 +565,17 @@ export default function StudyAssistantScreen() {
         onRequestClose={() => setShowApiKeyModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, highContrast && styles.modalContentHighContrast]}>
-            <Text style={[styles.modalTitle, highContrast && styles.textHighContrast]}>
-              Configure AI API Key
-            </Text>
-            <Text style={styles.modalSubtitle}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface, borderRadius: theme.borderRadius.xl }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>
+                Configure AI API Key
+              </Text>
+              <TouchableOpacity onPress={() => setShowApiKeyModal(false)}>
+                <MaterialIcons name="close" size={24} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
               Add a FREE API key to unlock AI features
             </Text>
 
@@ -540,14 +586,26 @@ export default function StudyAssistantScreen() {
                   key={provider}
                   style={[
                     styles.providerButton,
-                    selectedProvider === provider && styles.providerButtonActive,
+                    {
+                      backgroundColor: selectedProvider === provider ? theme.colors.primary : 'transparent',
+                      borderColor: selectedProvider === provider ? theme.colors.primary : theme.colors.border,
+                      borderRadius: theme.borderRadius.md,
+                    },
                   ]}
-                  onPress={() => setSelectedProvider(provider)}
+                  onPress={() => {
+                    setSelectedProvider(provider);
+                    triggerHaptic('light');
+                  }}
                 >
-                  <Text style={[
-                    styles.providerText,
-                    selectedProvider === provider && styles.providerTextActive,
-                  ]}>
+                  <Text
+                    style={[
+                      styles.providerText,
+                      {
+                        color: selectedProvider === provider ? theme.colors.textInverse : theme.colors.textSecondary,
+                        fontWeight: selectedProvider === provider ? '600' : '400',
+                      },
+                    ]}
+                  >
                     {provider.charAt(0).toUpperCase() + provider.slice(1)}
                   </Text>
                 </TouchableOpacity>
@@ -555,16 +613,24 @@ export default function StudyAssistantScreen() {
             </View>
 
             <TextInput
-              style={[styles.apiInput, highContrast && styles.inputHighContrast]}
+              style={[
+                styles.apiInput,
+                {
+                  backgroundColor: theme.colors.surfaceVariant,
+                  borderColor: theme.colors.border,
+                  color: theme.colors.textPrimary,
+                  borderRadius: theme.borderRadius.md,
+                },
+              ]}
               placeholder={`Enter ${selectedProvider} API key`}
-              placeholderTextColor={COLORS.gray}
+              placeholderTextColor={theme.colors.textTertiary}
               value={apiKeyInput}
               onChangeText={setApiKeyInput}
               secureTextEntry
               autoCapitalize="none"
             />
 
-            <Text style={styles.apiHint}>
+            <Text style={[styles.apiHint, { color: theme.colors.textTertiary }]}>
               Get free key:{'\n'}
               {selectedProvider === 'gemini' && '• makersuite.google.com/app/apikey'}
               {selectedProvider === 'groq' && '• console.groq.com/keys'}
@@ -574,18 +640,18 @@ export default function StudyAssistantScreen() {
             <View style={styles.modalActions}>
               <AccessibleButton
                 title="Cancel"
-                variant="outline"
+                variant="ghost"
                 onPress={() => {
                   setShowApiKeyModal(false);
                   setApiKeyInput('');
                 }}
-                style={styles.modalButton}
+                style={{ flex: 1 }}
               />
               <AccessibleButton
                 title="Save Key"
                 icon="save"
                 onPress={handleSaveApiKey}
-                style={styles.modalButton}
+                style={{ flex: 1 }}
               />
             </View>
           </View>
@@ -598,23 +664,23 @@ export default function StudyAssistantScreen() {
         animationType="slide"
         onRequestClose={() => setShowQuizModal(false)}
       >
-        <View style={[styles.quizContainer, highContrast && styles.containerHighContrast]}>
-          <View style={styles.quizHeader}>
-            <Text style={[styles.quizTitle, highContrast && styles.textHighContrast]}>
+        <View style={[styles.quizContainer, { backgroundColor: theme.colors.background }]}>
+          <View style={[styles.quizHeader, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
+            <Text style={[styles.quizTitle, { color: theme.colors.textPrimary }]}>
               {currentQuiz?.title || 'Quiz'}
             </Text>
             <TouchableOpacity onPress={() => setShowQuizModal(false)}>
-              <MaterialIcons name="close" size={24} color={highContrast ? '#FFFFFF' : COLORS.black} />
+              <MaterialIcons name="close" size={24} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.quizContent}>
+          <ScrollView style={styles.quizContent} showsVerticalScrollIndicator={false}>
             {currentQuiz?.questions.map((question, qIndex) => (
-              <View key={question.id} style={styles.questionCard}>
-                <Text style={[styles.questionNumber, highContrast && styles.textHighContrast]}>
+              <View key={question.id} style={[styles.questionCard, { backgroundColor: theme.colors.surface, borderRadius: theme.borderRadius.lg }]}>
+                <Text style={[styles.questionNumber, { color: theme.colors.primary }]}>
                   Question {qIndex + 1}
                 </Text>
-                <Text style={[styles.questionText, highContrast && styles.textHighContrast]}>
+                <Text style={[styles.questionText, { color: theme.colors.textPrimary }]}>
                   {question.question}
                 </Text>
 
@@ -628,17 +694,36 @@ export default function StudyAssistantScreen() {
                       key={oIndex}
                       style={[
                         styles.optionButton,
-                        isSelected && styles.optionSelected,
-                        showResult && isCorrect && styles.optionCorrect,
-                        showResult && isSelected && !isCorrect && styles.optionWrong,
+                        {
+                          borderColor: showResult && isCorrect
+                            ? theme.colors.success
+                            : showResult && isSelected && !isCorrect
+                            ? theme.colors.error
+                            : isSelected
+                            ? theme.colors.primary
+                            : theme.colors.border,
+                          backgroundColor: showResult && isCorrect
+                            ? `${theme.colors.success}15`
+                            : showResult && isSelected && !isCorrect
+                            ? `${theme.colors.error}15`
+                            : isSelected
+                            ? `${theme.colors.primary}15`
+                            : 'transparent',
+                          borderRadius: theme.borderRadius.md,
+                        },
                       ]}
                       onPress={() => selectQuizAnswer(question.id, oIndex)}
                       disabled={showResult}
                     >
-                      <Text style={[
-                        styles.optionText,
-                        isSelected && styles.optionTextSelected,
-                      ]}>
+                      <Text
+                        style={[
+                          styles.optionText,
+                          {
+                            color: theme.colors.textPrimary,
+                            fontWeight: isSelected ? '600' : '400',
+                          },
+                        ]}
+                      >
                         {option}
                       </Text>
                     </TouchableOpacity>
@@ -646,8 +731,8 @@ export default function StudyAssistantScreen() {
                 })}
 
                 {quizAnswers[question.id] !== undefined && (
-                  <View style={styles.explanationBox}>
-                    <Text style={styles.explanationText}>
+                  <View style={[styles.explanationBox, { backgroundColor: `${theme.colors.warning}15`, borderRadius: theme.borderRadius.md }]}>
+                    <Text style={[styles.explanationText, { color: theme.colors.textSecondary }]}>
                       {question.explanation}
                     </Text>
                   </View>
@@ -656,9 +741,9 @@ export default function StudyAssistantScreen() {
             ))}
 
             {Object.keys(quizAnswers).length === currentQuiz?.questions.length && (
-              <View style={styles.scoreCard}>
-                <Text style={styles.scoreTitle}>Quiz Complete!</Text>
-                <Text style={styles.scoreText}>
+              <View style={[styles.scoreCard, { backgroundColor: theme.colors.surface, borderRadius: theme.borderRadius.lg }]}>
+                <Text style={[styles.scoreTitle, { color: theme.colors.primary }]}>Quiz Complete!</Text>
+                <Text style={[styles.scoreText, { color: theme.colors.secondary }]}>
                   Score: {getQuizScore()} / {currentQuiz?.questions.length}
                 </Text>
                 <AccessibleButton
@@ -677,45 +762,45 @@ export default function StudyAssistantScreen() {
         animationType="slide"
         onRequestClose={() => setShowPlanModal(false)}
       >
-        <View style={[styles.planContainer, highContrast && styles.containerHighContrast]}>
-          <View style={styles.planHeader}>
-            <Text style={[styles.planTitle, highContrast && styles.textHighContrast]}>
+        <View style={[styles.planContainer, { backgroundColor: theme.colors.background }]}>
+          <View style={[styles.planHeader, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
+            <Text style={[styles.planTitle, { color: theme.colors.textPrimary }]}>
               {currentStudyPlan?.title || 'Study Plan'}
             </Text>
             <TouchableOpacity onPress={() => setShowPlanModal(false)}>
-              <MaterialIcons name="close" size={24} color={highContrast ? '#FFFFFF' : COLORS.black} />
+              <MaterialIcons name="close" size={24} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.planContent}>
+          <ScrollView style={styles.planContent} showsVerticalScrollIndicator={false}>
             {/* Objectives */}
-            <Text style={[styles.planSectionTitle, highContrast && styles.textHighContrast]}>
+            <Text style={[styles.planSectionTitle, { color: theme.colors.textPrimary }]}>
               Learning Objectives
             </Text>
             {currentStudyPlan?.objectives.map((obj, index) => (
               <View key={index} style={styles.objectiveItem}>
-                <MaterialIcons name="check-circle" size={20} color={COLORS.secondary} />
-                <Text style={[styles.objectiveText, highContrast && styles.textHighContrast]}>
+                <MaterialIcons name="check-circle" size={20} color={theme.colors.secondary} />
+                <Text style={[styles.objectiveText, { color: theme.colors.textPrimary }]}>
                   {obj}
                 </Text>
               </View>
             ))}
 
             {/* Sessions */}
-            <Text style={[styles.planSectionTitle, highContrast && styles.textHighContrast]}>
+            <Text style={[styles.planSectionTitle, { color: theme.colors.textPrimary }]}>
               Study Sessions
             </Text>
             {currentStudyPlan?.schedule.map((session, index) => (
-              <Card key={session.id} style={styles.sessionCard} highContrast={highContrast}>
+              <Card key={session.id} variant="elevated" style={styles.sessionCard}>
                 <View style={styles.sessionHeader}>
-                  <Text style={[styles.sessionNumber, highContrast && styles.textHighContrast]}>
+                  <Text style={[styles.sessionNumber, { color: theme.colors.primary }]}>
                     Session {index + 1}
                   </Text>
-                  <Text style={styles.sessionDuration}>
+                  <Text style={[styles.sessionDuration, { color: theme.colors.textSecondary }]}>
                     {session.duration} min
                   </Text>
                 </View>
-                <Text style={[styles.sessionTopic, highContrast && styles.textHighContrast]}>
+                <Text style={[styles.sessionTopic, { color: theme.colors.textPrimary }]}>
                   {session.topic}
                 </Text>
               </Card>
@@ -739,18 +824,14 @@ export default function StudyAssistantScreen() {
   );
 }
 
+// ==========================================
+// STYLES
+// ==========================================
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
-  containerHighContrast: {
-    backgroundColor: '#000000',
-  },
-  textHighContrast: {
-    color: '#FFFFFF',
-  },
-
   // Documents View
   documentsView: {
     flex: 1,
@@ -759,84 +840,83 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: SPACING.md,
-    backgroundColor: COLORS.white,
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayLight,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: COLORS.black,
   },
   settingsButton: {
-    padding: SPACING.sm,
+    padding: 8,
   },
   documentsList: {
     flex: 1,
-    padding: SPACING.md,
+    padding: 16,
   },
   uploadCard: {
-    marginBottom: SPACING.md,
-    borderStyle: 'dashed',
+    marginBottom: 16,
     borderWidth: 2,
-    borderColor: COLORS.primary,
-    backgroundColor: '#E3F2FD',
   },
   uploadContent: {
     alignItems: 'center',
-    padding: SPACING.lg,
+    padding: 24,
+  },
+  uploadIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   uploadTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: COLORS.primary,
-    marginTop: SPACING.sm,
+    marginBottom: 4,
   },
   uploadSubtitle: {
     fontSize: 14,
-    color: COLORS.gray,
-    marginTop: SPACING.xs,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: COLORS.black,
-    marginBottom: SPACING.sm,
-    marginTop: SPACING.md,
+    marginBottom: 12,
+    marginTop: 16,
   },
   documentCard: {
-    marginBottom: SPACING.sm,
+    marginBottom: 12,
   },
   deleteButton: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    padding: SPACING.sm,
+    padding: 8,
   },
   infoCard: {
-    marginTop: SPACING.lg,
-    backgroundColor: '#E3F2FD',
+    marginTop: 24,
+    padding: 16,
   },
   infoContent: {
     flexDirection: 'row',
   },
+  infoIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
   infoText: {
-    marginLeft: SPACING.sm,
     flex: 1,
   },
   infoTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.black,
+    marginBottom: 4,
   },
   infoDesc: {
     fontSize: 14,
-    color: COLORS.grayDark,
-    marginTop: SPACING.xs,
     lineHeight: 20,
   },
-
   // Chat View
   chatView: {
     flex: 1,
@@ -844,18 +924,12 @@ const styles = StyleSheet.create({
   chatHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: SPACING.md,
-    backgroundColor: COLORS.white,
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayLight,
-  },
-  chatHeaderHighContrast: {
-    backgroundColor: '#1A1A1A',
-    borderBottomColor: '#FFFFFF',
   },
   backButton: {
-    padding: SPACING.xs,
-    marginRight: SPACING.sm,
+    padding: 8,
+    marginRight: 8,
   },
   chatHeaderInfo: {
     flex: 1,
@@ -863,347 +937,240 @@ const styles = StyleSheet.create({
   chatDocName: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.black,
   },
   quickActions: {
-    backgroundColor: COLORS.white,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayLight,
+    paddingVertical: 12,
   },
   quickActionsContent: {
-    padding: SPACING.sm,
-    gap: SPACING.sm,
+    paddingHorizontal: 16,
+    gap: 8,
   },
   messagesContainer: {
     flex: 1,
   },
   messagesContent: {
-    padding: SPACING.md,
+    padding: 16,
   },
   messageBubble: {
     maxWidth: '85%',
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    marginBottom: SPACING.sm,
+    padding: 12,
+    borderRadius: 16,
+    marginBottom: 12,
   },
   userMessage: {
     alignSelf: 'flex-end',
-    backgroundColor: COLORS.primary,
-  },
-  userMessageHighContrast: {
-    backgroundColor: '#FFFF00',
   },
   assistantMessage: {
     alignSelf: 'flex-start',
-    backgroundColor: COLORS.white,
     borderWidth: 1,
-    borderColor: COLORS.grayLight,
-  },
-  assistantMessageHighContrast: {
-    backgroundColor: '#1A1A1A',
-    borderColor: '#FFFFFF',
   },
   messageText: {
     fontSize: 16,
-    color: COLORS.black,
     lineHeight: 22,
-  },
-  userMessageText: {
-    color: COLORS.white,
   },
   messageTime: {
     fontSize: 11,
-    color: COLORS.gray,
-    marginTop: SPACING.xs,
+    marginTop: 4,
     alignSelf: 'flex-end',
   },
   thinkingText: {
-    marginLeft: SPACING.sm,
-    color: COLORS.gray,
+    fontSize: 14,
+    fontStyle: 'italic',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    padding: SPACING.sm,
-    backgroundColor: COLORS.white,
+    padding: 12,
     borderTopWidth: 1,
-    borderTopColor: COLORS.grayLight,
-  },
-  inputContainerHighContrast: {
-    backgroundColor: '#1A1A1A',
-    borderTopColor: '#FFFFFF',
+    gap: 8,
   },
   textInput: {
     flex: 1,
-    minHeight: ACCESSIBILITY_CONFIG.preferredTouchTarget,
+    minHeight: 44,
     maxHeight: 100,
-    backgroundColor: COLORS.background,
-    borderRadius: BORDER_RADIUS.lg,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     fontSize: 16,
-    marginRight: SPACING.sm,
-  },
-  textInputHighContrast: {
-    backgroundColor: '#000000',
-    color: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#FFFFFF',
   },
   sendButton: {
-    width: ACCESSIBILITY_CONFIG.preferredTouchTarget,
-    height: ACCESSIBILITY_CONFIG.preferredTouchTarget,
-    borderRadius: ACCESSIBILITY_CONFIG.preferredTouchTarget / 2,
-    backgroundColor: COLORS.primary,
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  sendButtonDisabled: {
-    backgroundColor: COLORS.grayLight,
-  },
-
   // Modals
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: SPACING.lg,
+    justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.lg,
-    width: '100%',
-    maxWidth: 400,
+    padding: 24,
+    paddingBottom: 40,
   },
-  modalContentHighContrast: {
-    backgroundColor: '#1A1A1A',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.black,
-    marginBottom: SPACING.xs,
   },
   modalSubtitle: {
     fontSize: 14,
-    color: COLORS.gray,
-    marginBottom: SPACING.lg,
+    marginBottom: 20,
   },
   providerButtons: {
     flexDirection: 'row',
-    marginBottom: SPACING.md,
+    gap: 8,
+    marginBottom: 16,
   },
   providerButton: {
     flex: 1,
-    padding: SPACING.sm,
-    borderWidth: 1,
-    borderColor: COLORS.grayLight,
+    padding: 12,
+    borderWidth: 1.5,
     alignItems: 'center',
-  },
-  providerButtonActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
   },
   providerText: {
     fontSize: 14,
-    color: COLORS.gray,
-  },
-  providerTextActive: {
-    color: COLORS.white,
-    fontWeight: '600',
   },
   apiInput: {
     borderWidth: 1,
-    borderColor: COLORS.grayLight,
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
+    padding: 14,
     fontSize: 16,
-    marginBottom: SPACING.sm,
-  },
-  inputHighContrast: {
-    backgroundColor: '#000000',
-    borderColor: '#FFFFFF',
-    color: '#FFFFFF',
+    marginBottom: 12,
   },
   apiHint: {
     fontSize: 12,
-    color: COLORS.gray,
-    marginBottom: SPACING.md,
+    marginBottom: 20,
     lineHeight: 18,
   },
   modalActions: {
     flexDirection: 'row',
-    gap: SPACING.sm,
+    gap: 12,
   },
-  modalButton: {
-    flex: 1,
-  },
-
   // Quiz Modal
   quizContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   quizHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: SPACING.md,
-    backgroundColor: COLORS.white,
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayLight,
-    paddingTop: Platform.OS === 'ios' ? 60 : SPACING.md,
+    paddingTop: Platform.OS === 'ios' ? 60 : 16,
   },
   quizTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.black,
   },
   quizContent: {
-    padding: SPACING.md,
+    padding: 16,
   },
   questionCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.lg,
-    marginBottom: SPACING.md,
+    padding: 16,
+    marginBottom: 16,
   },
   questionNumber: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.primary,
-    marginBottom: SPACING.xs,
+    marginBottom: 8,
   },
   questionText: {
     fontSize: 16,
-    color: COLORS.black,
-    marginBottom: SPACING.md,
+    marginBottom: 16,
     lineHeight: 22,
   },
   optionButton: {
-    padding: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.grayLight,
-    borderRadius: BORDER_RADIUS.md,
-    marginBottom: SPACING.sm,
-  },
-  optionSelected: {
-    borderColor: COLORS.primary,
-    backgroundColor: '#E3F2FD',
-  },
-  optionCorrect: {
-    borderColor: COLORS.success,
-    backgroundColor: '#E8F5E9',
-  },
-  optionWrong: {
-    borderColor: COLORS.error,
-    backgroundColor: '#FFEBEE',
+    padding: 14,
+    borderWidth: 1.5,
+    marginBottom: 8,
   },
   optionText: {
     fontSize: 14,
-    color: COLORS.black,
-  },
-  optionTextSelected: {
-    fontWeight: '600',
   },
   explanationBox: {
-    backgroundColor: '#FFF3E0',
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    marginTop: SPACING.sm,
+    padding: 12,
+    marginTop: 12,
   },
   explanationText: {
     fontSize: 14,
-    color: COLORS.accentDark,
+    lineHeight: 20,
   },
   scoreCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.xl,
+    padding: 24,
     alignItems: 'center',
-    marginTop: SPACING.lg,
+    marginTop: 24,
   },
   scoreTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: COLORS.primary,
-    marginBottom: SPACING.sm,
+    marginBottom: 8,
   },
   scoreText: {
     fontSize: 32,
     fontWeight: '700',
-    color: COLORS.secondary,
-    marginBottom: SPACING.lg,
+    marginBottom: 24,
   },
-
   // Study Plan Modal
   planContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   planHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: SPACING.md,
-    backgroundColor: COLORS.white,
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayLight,
-    paddingTop: Platform.OS === 'ios' ? 60 : SPACING.md,
+    paddingTop: Platform.OS === 'ios' ? 60 : 16,
   },
   planTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.black,
   },
   planContent: {
-    padding: SPACING.md,
+    padding: 16,
   },
   planSectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: COLORS.black,
-    marginBottom: SPACING.sm,
-    marginTop: SPACING.md,
+    marginBottom: 12,
+    marginTop: 16,
   },
   objectiveItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING.sm,
+    marginBottom: 12,
   },
   objectiveText: {
     fontSize: 14,
-    color: COLORS.black,
-    marginLeft: SPACING.sm,
+    marginLeft: 12,
     flex: 1,
   },
   sessionCard: {
-    marginBottom: SPACING.sm,
+    marginBottom: 12,
   },
   sessionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: SPACING.xs,
+    marginBottom: 8,
   },
   sessionNumber: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.primary,
   },
   sessionDuration: {
     fontSize: 14,
-    color: COLORS.gray,
   },
   sessionTopic: {
     fontSize: 16,
-    color: COLORS.black,
   },
   startButton: {
-    marginTop: SPACING.lg,
-    marginBottom: SPACING.xxl,
+    marginTop: 24,
+    marginBottom: 40,
   },
 });

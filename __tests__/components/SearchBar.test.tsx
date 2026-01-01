@@ -135,11 +135,11 @@ describe('SearchBar Component', () => {
 
   describe('High Contrast Mode', () => {
     test('should apply high contrast styles', () => {
+      // High contrast is now handled by theme system, not a prop
       const { getByRole } = render(
         <SearchBar
           value=""
           onChangeText={() => {}}
-          highContrast={true}
         />
       );
 

@@ -10,7 +10,10 @@
       "@services/*": ["src/services/*"],
       "@utils/*": ["src/utils/*"],
       "@assets/*": ["assets/*"]
-    }
+    },
+    "typeRoots": ["./node_modules/@types"],
+    "skipLibCheck": true
   },
-  "include": ["**/*.ts", "**/*.tsx"]
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules"]
 }

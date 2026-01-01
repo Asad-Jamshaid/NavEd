@@ -4,8 +4,11 @@
 // ==========================================
 
 import { Coordinate, NavigationRoute, NavigationStep, Building } from '../types';
-import { BUILDINGS, ROOMS } from '../data/campusData';
+import { BUILDINGS, ROOMS, searchBuildings, searchRooms, getAccessibleBuildings } from '../data/campusData';
 import { OSM_CONFIG } from '../utils/constants';
+
+// Re-export search functions for convenience
+export { searchBuildings, searchRooms, getAccessibleBuildings };
 
 // ==========================================
 // OSRM Routing (Completely FREE)

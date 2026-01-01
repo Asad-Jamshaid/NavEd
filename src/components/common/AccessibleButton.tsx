@@ -1,6 +1,6 @@
 // ==========================================
-// Accessible Button Component
-// Meets WCAG 2.1 AA standards
+// Accessible Button Component - Modern Design
+// WCAG 2.1 AA Compliant
 // ==========================================
 
 import React from 'react';
@@ -11,16 +11,21 @@ import {
   ViewStyle,
   TextStyle,
   ActivityIndicator,
+  View,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, BORDER_RADIUS, ACCESSIBILITY_CONFIG } from '../../utils/constants';
-import { triggerHaptic, selectionHaptic } from '../../services/accessibilityService';
+import { useTheme } from '../../contexts/ThemeContext';
+import { shadows, borderRadius, spacing, componentSizes } from '../../theme';
+import { selectionHaptic } from '../../services/accessibilityService';
+
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+type ButtonSize = 'small' | 'medium' | 'large';
 
 interface AccessibleButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'text' | 'danger';
-  size?: 'small' | 'medium' | 'large';
+  variant?: ButtonVariant;
+  size?: ButtonSize;
   icon?: keyof typeof MaterialIcons.glyphMap;
   iconPosition?: 'left' | 'right';
   disabled?: boolean;
@@ -29,7 +34,6 @@ interface AccessibleButtonProps {
   accessibilityHint?: string;
   style?: ViewStyle;
   textStyle?: TextStyle;
-  highContrast?: boolean;
 }
 
 export default function AccessibleButton({
@@ -45,119 +49,127 @@ export default function AccessibleButton({
   accessibilityHint,
   style,
   textStyle,
-  highContrast = false,
 }: AccessibleButtonProps) {
+  const { theme } = useTheme();
+
   const handlePress = async () => {
     if (disabled || loading) return;
-    await selectionHaptic();
+    try {
+      await selectionHaptic();
+    } catch (e) {
+      // Haptic not available
+    }
     onPress();
   };
 
-  const getButtonStyle = (): ViewStyle => {
-    const baseStyle: ViewStyle = {
-      ...styles.base,
-      ...getSizeStyle(),
-      ...(fullWidth && styles.fullWidth),
-    };
-
+  // Get button colors based on variant
+  const getColors = () => {
     if (disabled) {
-      return { ...baseStyle, ...styles.disabled };
-    }
-
-    if (highContrast) {
-      return { ...baseStyle, ...styles.highContrast };
+      return {
+        bg: theme.colors.surfaceVariant,
+        text: theme.colors.textTertiary,
+        border: 'transparent',
+      };
     }
 
     switch (variant) {
       case 'primary':
-        return { ...baseStyle, ...styles.primary };
+        return {
+          bg: theme.colors.primary,
+          text: '#FFFFFF',
+          border: 'transparent',
+        };
       case 'secondary':
-        return { ...baseStyle, ...styles.secondary };
+        return {
+          bg: theme.colors.secondary,
+          text: '#FFFFFF',
+          border: 'transparent',
+        };
       case 'outline':
-        return { ...baseStyle, ...styles.outline };
-      case 'text':
-        return { ...baseStyle, ...styles.text };
+        return {
+          bg: 'transparent',
+          text: theme.colors.primary,
+          border: theme.colors.primary,
+        };
+      case 'ghost':
+        return {
+          bg: 'transparent',
+          text: theme.colors.primary,
+          border: 'transparent',
+        };
       case 'danger':
-        return { ...baseStyle, ...styles.danger };
+        return {
+          bg: theme.colors.error,
+          text: '#FFFFFF',
+          border: 'transparent',
+        };
       default:
-        return { ...baseStyle, ...styles.primary };
+        return {
+          bg: theme.colors.primary,
+          text: '#FFFFFF',
+          border: 'transparent',
+        };
     }
   };
 
-  const getTextStyle = (): TextStyle => {
-    const baseTextStyle: TextStyle = {
-      ...styles.baseText,
-      ...getTextSizeStyle(),
-    };
-
-    if (disabled) {
-      return { ...baseTextStyle, ...styles.disabledText };
-    }
-
-    if (highContrast) {
-      return { ...baseTextStyle, color: '#000000' };
-    }
-
-    switch (variant) {
-      case 'primary':
-      case 'danger':
-        return { ...baseTextStyle, color: COLORS.white };
-      case 'secondary':
-        return { ...baseTextStyle, color: COLORS.white };
-      case 'outline':
-      case 'text':
-        return { ...baseTextStyle, color: COLORS.primary };
-      default:
-        return baseTextStyle;
-    }
-  };
-
-  const getSizeStyle = (): ViewStyle => {
+  // Get size styles
+  const getSizeStyles = (): { button: ViewStyle; text: TextStyle; icon: number } => {
     switch (size) {
       case 'small':
-        return styles.sizeSmall;
+        return {
+          button: {
+            height: componentSizes.button.sm,
+            paddingHorizontal: spacing.md,
+          },
+          text: { fontSize: 14 },
+          icon: 16,
+        };
       case 'large':
-        return styles.sizeLarge;
+        return {
+          button: {
+            height: componentSizes.button.lg,
+            paddingHorizontal: spacing.xl,
+          },
+          text: { fontSize: 18 },
+          icon: 24,
+        };
       default:
-        return styles.sizeMedium;
+        return {
+          button: {
+            height: componentSizes.button.md,
+            paddingHorizontal: spacing.lg,
+          },
+          text: { fontSize: 16 },
+          icon: 20,
+        };
     }
   };
 
-  const getTextSizeStyle = (): TextStyle => {
-    switch (size) {
-      case 'small':
-        return styles.textSmall;
-      case 'large':
-        return styles.textLarge;
-      default:
-        return styles.textMedium;
-    }
+  const colors = getColors();
+  const sizeStyles = getSizeStyles();
+
+  const buttonStyle: ViewStyle = {
+    ...styles.base,
+    ...sizeStyles.button,
+    backgroundColor: colors.bg,
+    borderColor: colors.border,
+    borderWidth: variant === 'outline' ? 2 : 0,
+    ...(fullWidth && styles.fullWidth),
+    ...(variant === 'primary' && !disabled && shadows.sm),
   };
 
-  const getIconSize = (): number => {
-    switch (size) {
-      case 'small':
-        return 16;
-      case 'large':
-        return 24;
-      default:
-        return 20;
-    }
+  const textStyles: TextStyle = {
+    ...styles.text,
+    ...sizeStyles.text,
+    color: colors.text,
   };
-
-  const iconColor = disabled
-    ? COLORS.gray
-    : highContrast
-    ? '#000000'
-    : variant === 'outline' || variant === 'text'
-    ? COLORS.primary
-    : COLORS.white;
 
   return (
     <TouchableOpacity
-      style={[getButtonStyle(), style]}
+      style={[buttonStyle, style]}
       onPress={handlePress}
       disabled={disabled || loading}
+      activeOpacity={0.7}
       accessible={true}
       accessibilityRole="button"
       accessibilityLabel={title}
@@ -168,28 +180,98 @@ export default function AccessibleButton({
       }}
     >
       {loading ? (
-        <ActivityIndicator color={iconColor} size="small" />
+        <ActivityIndicator color={colors.text} size="small" />
       ) : (
-        <>
+        <View style={styles.content}>
           {icon && iconPosition === 'left' && (
             <MaterialIcons
               name={icon}
-              size={getIconSize()}
-              color={iconColor}
+              size={sizeStyles.icon}
+              color={colors.text}
               style={styles.iconLeft}
             />
           )}
-          <Text style={[getTextStyle(), textStyle]}>{title}</Text>
+          <Text style={[textStyles, textStyle]}>{title}</Text>
           {icon && iconPosition === 'right' && (
             <MaterialIcons
               name={icon}
-              size={getIconSize()}
-              color={iconColor}
+              size={sizeStyles.icon}
+              color={colors.text}
               style={styles.iconRight}
             />
           )}
-        </>
+        </View>
       )}
+    </TouchableOpacity>
+  );
+}
+
+// Icon-only button variant
+export function IconButton({
+  icon,
+  onPress,
+  size = 'medium',
+  variant = 'ghost',
+  disabled = false,
+  accessibilityLabel,
+  style,
+}: {
+  icon: keyof typeof MaterialIcons.glyphMap;
+  onPress: () => void;
+  size?: ButtonSize;
+  variant?: ButtonVariant;
+  disabled?: boolean;
+  accessibilityLabel: string;
+  style?: ViewStyle;
+}) {
+  const { theme } = useTheme();
+
+  const getSize = () => {
+    switch (size) {
+      case 'small': return { button: 36, icon: 20 };
+      case 'large': return { button: 52, icon: 28 };
+      default: return { button: 44, icon: 24 };
+    }
+  };
+
+  const getColors = () => {
+    if (disabled) {
+      return { bg: 'transparent', icon: theme.colors.textTertiary };
+    }
+    switch (variant) {
+      case 'primary':
+        return { bg: theme.colors.primary, icon: '#FFFFFF' };
+      case 'danger':
+        return { bg: theme.colors.error, icon: '#FFFFFF' };
+      default:
+        return { bg: 'transparent', icon: theme.colors.textPrimary };
+    }
+  };
+
+  const sizeConfig = getSize();
+  const colors = getColors();
+
+  return (
+    <TouchableOpacity
+      style={[
+        {
+          width: sizeConfig.button,
+          height: sizeConfig.button,
+          borderRadius: sizeConfig.button / 2,
+          backgroundColor: colors.bg,
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        style,
+      ]}
+      onPress={onPress}
+      disabled={disabled}
+      activeOpacity={0.7}
+      accessible={true}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+    >
+      <MaterialIcons name={icon} size={sizeConfig.icon} color={colors.icon} />
     </TouchableOpacity>
   );
 }
@@ -199,79 +281,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: BORDER_RADIUS.md,
-    // Minimum touch target for accessibility
-    minWidth: ACCESSIBILITY_CONFIG.minTouchTarget,
-    minHeight: ACCESSIBILITY_CONFIG.minTouchTarget,
+    borderRadius: borderRadius.md,
+    minWidth: componentSizes.touchTarget.min,
   },
   fullWidth: {
     width: '100%',
   },
-
-  // Variants
-  primary: {
-    backgroundColor: COLORS.primary,
-  },
-  secondary: {
-    backgroundColor: COLORS.secondary,
-  },
-  outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: COLORS.primary,
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   text: {
-    backgroundColor: 'transparent',
-  },
-  danger: {
-    backgroundColor: COLORS.error,
-  },
-  disabled: {
-    backgroundColor: COLORS.grayLight,
-  },
-  highContrast: {
-    backgroundColor: '#FFFF00',
-    borderWidth: 2,
-    borderColor: '#000000',
-  },
-
-  // Sizes
-  sizeSmall: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-  },
-  sizeMedium: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-  },
-  sizeLarge: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-  },
-
-  // Text
-  baseText: {
     fontWeight: '600',
     textAlign: 'center',
   },
-  textSmall: {
-    fontSize: 14,
-  },
-  textMedium: {
-    fontSize: 16,
-  },
-  textLarge: {
-    fontSize: 18,
-  },
-  disabledText: {
-    color: COLORS.gray,
-  },
-
-  // Icons
   iconLeft: {
-    marginRight: SPACING.xs,
+    marginRight: spacing.xs,
   },
   iconRight: {
-    marginLeft: SPACING.xs,
+    marginLeft: spacing.xs,
   },
 });

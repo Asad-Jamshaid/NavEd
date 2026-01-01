@@ -1,18 +1,23 @@
 // ==========================================
 // NavEd - Campus Navigation & Study Assistant
-// Budget-Friendly App for Students
+// Modern Minimal Design
 // ==========================================
 
 import React, { useEffect } from 'react';
-import { StatusBar, Platform, LogBox } from 'react-native';
+import { StatusBar, Platform, LogBox, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as SplashScreen from 'expo-splash-screen';
 
 // Contexts
 import { AppProvider, useApp } from './src/contexts/AppContext';
+import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
+
+// Components
+import ErrorBoundary from './src/components/common/ErrorBoundary';
 
 // Screens
 import CampusMapScreen from './src/screens/navigation/CampusMapScreen';
@@ -24,9 +29,10 @@ import SettingsScreen from './src/screens/settings/SettingsScreen';
 import { initializeAccessibility } from './src/services/accessibilityService';
 import { setupParkingAlerts } from './src/services/parkingService';
 import { loadApiKeys } from './src/services/studyAssistantService';
+import { initializeNotifications } from './src/services/notificationService';
 
-// Constants
-import { COLORS } from './src/utils/constants';
+// Theme
+import { componentSizes } from './src/theme';
 
 // Ignore specific warnings
 LogBox.ignoreLogs([
@@ -39,10 +45,14 @@ SplashScreen.preventAutoHideAsync();
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-// Tab Navigator
+// Tab Navigator with Theme Support
 function TabNavigator() {
-  const { state } = useApp();
-  const highContrast = state.user?.preferences.highContrast;
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  // Calculate proper bottom padding for Android soft navigation buttons
+  const bottomPadding = Platform.OS === 'ios' ? 25 : Math.max(insets.bottom, 10);
+  const tabBarHeight = Platform.OS === 'ios' ? 85 : componentSizes.tabBar.height + bottomPadding;
 
   return (
     <Tab.Navigator
@@ -65,30 +75,52 @@ function TabNavigator() {
               break;
           }
 
-          return <MaterialIcons name={iconName} size={size} color={color} />;
+          return (
+            <View style={{
+              padding: 4,
+              borderRadius: 12,
+              backgroundColor: focused ? `${theme.colors.primary}15` : 'transparent',
+            }}>
+              <MaterialIcons
+                name={iconName}
+                size={componentSizes.tabBar.iconSize}
+                color={color}
+              />
+            </View>
+          );
         },
-        tabBarActiveTintColor: highContrast ? '#FFFF00' : COLORS.primary,
-        tabBarInactiveTintColor: highContrast ? '#AAAAAA' : COLORS.gray,
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.textTertiary,
         tabBarStyle: {
-          backgroundColor: highContrast ? '#000000' : COLORS.white,
-          borderTopColor: highContrast ? '#FFFFFF' : COLORS.grayLight,
+          backgroundColor: theme.colors.surface,
+          borderTopColor: theme.colors.border,
           borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 85 : 60,
-          paddingBottom: Platform.OS === 'ios' ? 25 : 8,
+          height: tabBarHeight,
+          paddingBottom: bottomPadding,
           paddingTop: 8,
+          elevation: 0,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 8,
         },
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '600',
+          marginTop: 2,
         },
         headerStyle: {
-          backgroundColor: highContrast ? '#000000' : COLORS.primary,
+          backgroundColor: theme.colors.surface,
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.border,
         },
-        headerTintColor: COLORS.white,
+        headerTintColor: theme.colors.textPrimary,
         headerTitleStyle: {
-          fontWeight: '700',
+          fontWeight: '600',
+          fontSize: 18,
         },
-        // Accessibility
         tabBarAccessibilityLabel: `${route.name} tab`,
       })}
     >
@@ -128,7 +160,7 @@ function TabNavigator() {
 
 // Main App Content
 function AppContent() {
-  const { state } = useApp();
+  const { theme } = useTheme();
 
   useEffect(() => {
     initializeApp();
@@ -141,6 +173,12 @@ function AppContent() {
         await initializeAccessibility();
       } catch (e) {
         console.log('Accessibility init error:', e);
+      }
+
+      try {
+        await initializeNotifications();
+      } catch (e) {
+        console.log('Notifications init error:', e);
       }
 
       try {
@@ -162,25 +200,22 @@ function AppContent() {
     }
   };
 
-  const highContrast = state.user?.preferences.highContrast;
-  const darkMode = state.user?.preferences.darkMode;
-
   return (
     <>
       <StatusBar
-        barStyle={highContrast || darkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={highContrast ? '#000000' : COLORS.primary}
+        barStyle={theme.isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.colors.surface}
       />
       <NavigationContainer
         theme={{
-          dark: !!(darkMode || highContrast),
+          dark: theme.isDark,
           colors: {
-            primary: highContrast ? '#FFFF00' : COLORS.primary,
-            background: highContrast ? '#000000' : darkMode ? '#121212' : COLORS.background,
-            card: highContrast ? '#000000' : darkMode ? '#1E1E1E' : COLORS.white,
-            text: highContrast ? '#FFFFFF' : darkMode ? '#FFFFFF' : COLORS.black,
-            border: highContrast ? '#FFFFFF' : COLORS.grayLight,
-            notification: COLORS.error,
+            primary: theme.colors.primary,
+            background: theme.colors.background,
+            card: theme.colors.surface,
+            text: theme.colors.textPrimary,
+            border: theme.colors.border,
+            notification: theme.colors.error,
           },
         }}
       >
@@ -192,11 +227,17 @@ function AppContent() {
   );
 }
 
-// Root App
+// Root App with All Providers
 export default function App() {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <ErrorBoundary>
+          <AppProvider>
+            <AppContent />
+          </AppProvider>
+        </ErrorBoundary>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

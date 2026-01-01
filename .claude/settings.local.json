@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(eas build:*)",
+      "Bash(npx expo prebuild:*)",
+      "Bash(npm start)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(rm -rf node_modules)",
+      "Bash(rm:*)",
+      "Bash(npx expo install:*)",
+      "Bash(npx expo --version)",
+      "Bash(eas build:list:*)",
+      "Bash(eas build:view:*)",
+      "Bash(node --version:*)",
+      "Bash(eas diagnostics:*)",
+      "Bash(npx eas build:*)",
+      "Bash(npx eas build:view:*)",
+      "Bash(./gradlew assembleRelease:*)",
+      "Bash(taskkill:*)",
+      "Bash(npx expo doctor)",
+      "Bash(npx expo-doctor:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx expo export:*)",
+      "Bash(timeout 120 bash -c 'while true; do sleep 30; cd \"\"c:\\\\Users\\\\LENOVO\\\\Documents\\\\GitHub\\\\NavEd\"\" && STATUS=$\\(npx eas build:view 008650e0-109e-41d9-857f-2017c0bf16b0 --json 2>/dev/null | grep -o \"\"\\\\\"\"status\\\\\"\": \\\\\"\"[^\\\\\"\"]*\\\\\"\"\"\" | head -1\\); echo \"\"$STATUS\"\"; if echo \"\"$STATUS\"\" | grep -q \"\"FINISHED\\\\|ERRORED\\\\|CANCELED\"\"; then break; fi; done')",
+      "Bash(dir \"c:\\\\Users\\\\LENOVO\\\\Documents\\\\GitHub\\\\NavEd\\\\assets\" /B)",
+      "Bash(timeout 120 bash -c 'while true; do sleep 30; cd \"\"c:\\\\\\\\Users\\\\\\\\LENOVO\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\NavEd\"\" && STATUS=$\\(npx eas build:view ed8f7b96-d65c-4a3a-849b-3ffe29b4f345 --json 2>/dev/null | grep -o \"\"\\\\\"\"status\\\\\"\": \\\\\"\"[^\\\\\"\"]*\\\\\"\"\"\" | head -1\\); echo \"\"$STATUS\"\"; if echo \"\"$STATUS\"\" | grep -q \"\"FINISHED\\\\|ERRORED\\\\|CANCELED\"\"; then break; fi; done')",
+      "Bash(npx eas:*)",
+      "Bash(cat:*)",
+      "Bash(npm run lint)",
+      "Bash(wc:*)",
+      "Bash(grep:*)"
+    ]
+  }
+}

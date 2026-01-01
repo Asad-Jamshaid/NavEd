@@ -3,9 +3,13 @@
     "name": "NavEd",
     "slug": "naved",
     "version": "1.0.0",
+    "sdkVersion": "54.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/favicon.png",
     "userInterfaceStyle": "automatic",
+    "updates": {
+      "enabled": false
+    },
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -17,45 +21,46 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.naved.app",
+      "buildNumber": "1",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "NavEd needs your location to provide campus navigation",
         "NSLocationAlwaysUsageDescription": "NavEd needs your location for turn-by-turn navigation",
         "NSCameraUsageDescription": "NavEd needs camera access to scan documents",
-        "NSMicrophoneUsageDescription": "NavEd needs microphone for voice commands"
+        "NSMicrophoneUsageDescription": "NavEd needs microphone for voice commands",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/favicon.png",
         "backgroundColor": "#1E3A5F"
       },
       "package": "com.naved.app",
       "permissions": [
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION",
-        "CAMERA",
-        "RECORD_AUDIO",
-        "VIBRATE",
-        "RECEIVE_BOOT_COMPLETED"
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-location",
-      "expo-camera",
-      "expo-notifications",
       [
-        "expo-av",
+        "expo-location",
         {
-          "microphonePermission": "Allow NavEd to access your microphone for voice commands."
+          "locationAlwaysAndWhenInUsePermission": "Allow NavEd to use your location."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {
-        "projectId": "your-project-id"
+        "projectId": "f252fda2-d427-4a30-81c0-eb2494ee47e1"
       }
     }
   }

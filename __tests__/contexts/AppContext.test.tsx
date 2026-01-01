@@ -13,12 +13,11 @@ import { ParkingLot, ParkedVehicle, UserPreferences } from '../../src/types';
 
 // Test component that uses the context
 const TestConsumer: React.FC = () => {
-  const { state, updatePreferences, saveParkedVehicle, setLoading, setError, clearError } = useApp();
+  const { state, dispatch, updatePreferences, saveParkedVehicle } = useApp();
 
   return (
     <>
       <Text testID="loading">{state.isLoading ? 'loading' : 'not-loading'}</Text>
-      <Text testID="error">{state.error || 'no-error'}</Text>
       <Text testID="darkMode">{state.user?.preferences.darkMode ? 'dark' : 'light'}</Text>
       <Text testID="voiceGuidance">{state.user?.preferences.voiceGuidance ? 'on' : 'off'}</Text>
       <Text testID="parkedVehicle">{state.parkedVehicle ? 'parked' : 'not-parked'}</Text>
@@ -36,17 +35,7 @@ const TestConsumer: React.FC = () => {
       <Button
         testID="setLoading"
         title="Set Loading"
-        onPress={() => setLoading(true)}
-      />
-      <Button
-        testID="setError"
-        title="Set Error"
-        onPress={() => setError('Test error message')}
-      />
-      <Button
-        testID="clearError"
-        title="Clear Error"
-        onPress={() => clearError()}
+        onPress={() => dispatch({ type: 'SET_LOADING', payload: true })}
       />
       <Button
         testID="parkVehicle"
@@ -84,18 +73,6 @@ describe('AppContext', () => {
 
       await waitFor(() => {
         expect(getByTestId('loading').props.children).toBe('not-loading');
-      });
-    });
-
-    test('should have no error initially', async () => {
-      const { getByTestId } = render(
-        <AppProvider>
-          <TestConsumer />
-        </AppProvider>
-      );
-
-      await waitFor(() => {
-        expect(getByTestId('error').props.children).toBe('no-error');
       });
     });
 
@@ -183,46 +160,6 @@ describe('AppContext', () => {
 
       await waitFor(() => {
         expect(getByTestId('loading').props.children).toBe('loading');
-      });
-    });
-  });
-
-  describe('Error Handling', () => {
-    test('should set error message', async () => {
-      const { getByTestId } = render(
-        <AppProvider>
-          <TestConsumer />
-        </AppProvider>
-      );
-
-      await waitFor(() => {
-        expect(getByTestId('error').props.children).toBe('no-error');
-      });
-
-      fireEvent.press(getByTestId('setError'));
-
-      await waitFor(() => {
-        expect(getByTestId('error').props.children).toBe('Test error message');
-      });
-    });
-
-    test('should clear error message', async () => {
-      const { getByTestId } = render(
-        <AppProvider>
-          <TestConsumer />
-        </AppProvider>
-      );
-
-      fireEvent.press(getByTestId('setError'));
-
-      await waitFor(() => {
-        expect(getByTestId('error').props.children).toBe('Test error message');
-      });
-
-      fireEvent.press(getByTestId('clearError'));
-
-      await waitFor(() => {
-        expect(getByTestId('error').props.children).toBe('no-error');
       });
     });
   });

@@ -153,10 +153,10 @@ export const SUPABASE_CONFIG = {
 // Replace with your actual campus coordinates
 // ==========================================
 export const CAMPUS_CONFIG = {
-  // Default center (Update with your university coordinates)
+  // University of Central Punjab - Johar Town, Lahore
   center: {
-    latitude: 31.5204,  // Example: Lahore, Pakistan
-    longitude: 74.3587,
+    latitude: 31.4700,  // UCP Main Campus, Khayaban-e-Jinnah Road, Johar Town
+    longitude: 74.2800,
   },
   defaultZoom: 16,
   minZoom: 14,

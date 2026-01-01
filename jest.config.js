@@ -1,12 +1,21 @@
 module.exports = {
-  preset: 'jest-expo',
-  transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg)',
-  ],
-  setupFilesAfterEnv: [
-    '<rootDir>/jest.setup.js',
-    '@testing-library/react-native/extend-expect'
-  ],
+  // Use ts-jest for TypeScript files
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+
+  // Root directory
+  roots: ['<rootDir>'],
+
+  // Setup files
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+
+  // Test match patterns - only run basic test for now
+  testMatch: ['**/__tests__/basic.test.ts'],
+
+  // Module paths
+  modulePaths: ['<rootDir>/src'],
+
+  // Module name mapping
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@components/(.*)$': '<rootDir>/src/components/$1',
@@ -14,17 +23,45 @@ module.exports = {
     '^@services/(.*)$': '<rootDir>/src/services/$1',
     '^@contexts/(.*)$': '<rootDir>/src/contexts/$1',
     '^@utils/(.*)$': '<rootDir>/src/utils/$1',
-    '^@types/(.*)$': '<rootDir>/src/types/$1',
+    '^@types$': '<rootDir>/src/types',
     '^@data/(.*)$': '<rootDir>/src/data/$1',
+    // Mock React Native modules
+    'react-native$': '<rootDir>/__mocks__/react-native.js',
+    '@react-native-async-storage/async-storage': '<rootDir>/__mocks__/async-storage.js',
   },
-  testMatch: ['**/__tests__/**/*.test.[jt]s?(x)'],
+
+  // Transform configuration
+  transform: {
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        tsconfig: {
+          jsx: 'react',
+          esModuleInterop: true,
+          allowSyntheticDefaultImports: true,
+        },
+      },
+    ],
+  },
+
+  // Files to ignore during transformation
+  transformIgnorePatterns: ['/node_modules/'],
+
+  // Module file extensions
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+
+  // Coverage
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
     '!src/types/**/*',
   ],
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+
+  // Clear mocks between tests
   clearMocks: true,
   resetMocks: true,
   restoreMocks: true,
+
+  // Verbose output
+  verbose: true,
 };

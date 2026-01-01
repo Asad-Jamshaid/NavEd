@@ -274,11 +274,11 @@ describe('AccessibleButton Component', () => {
 
   describe('High Contrast Mode', () => {
     test('should apply high contrast styles when enabled', () => {
+      // High contrast is now handled by theme system, not a prop
       const { getByRole } = render(
         <AccessibleButton
           title="High Contrast"
           onPress={() => {}}
-          highContrast={true}
         />
       );
 
