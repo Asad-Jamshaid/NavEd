@@ -1,5 +1,6 @@
 // ==========================================
-// Campus Map Screen - OpenStreetMap (FREE)
+// Campus Map Screen - Modern Minimal Design
+// OpenStreetMap (FREE) - No API keys required!
 // ==========================================
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -13,14 +14,16 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import MapView, { Marker, Polyline } from 'react-native-maps';
+import MapView, { Marker, Polyline, MapLibreMapRef } from '../../components/common/MapViewFallback';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { Video } from 'expo-av';
+import { Video, ResizeMode } from 'expo-av';
 
 import SearchBar from '../../components/common/SearchBar';
 import AccessibleButton from '../../components/common/AccessibleButton';
-import { COLORS, SPACING, CAMPUS_CONFIG, BUILDING_CATEGORIES } from '../../utils/constants';
+import Card, { SimpleCard } from '../../components/common/Card';
+import { useTheme } from '../../contexts/ThemeContext';
+import { CAMPUS_CONFIG, BUILDING_CATEGORIES } from '../../utils/constants';
 import { Building, Coordinate, NavigationRoute, Room } from '../../types';
 import {
   BUILDINGS,
@@ -34,7 +37,6 @@ import {
   getRoute,
   formatDistance,
   formatDuration,
-  calculateDistance,
 } from '../../services/navigationService';
 import {
   speak,
@@ -45,8 +47,9 @@ import {
 import { useApp } from '../../contexts/AppContext';
 
 export default function CampusMapScreen() {
+  const { theme } = useTheme();
   const { state } = useApp();
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<MapLibreMapRef>(null);
 
   // State
   const [userLocation, setUserLocation] = useState<Coordinate | null>(null);
@@ -62,7 +65,6 @@ export default function CampusMapScreen() {
   const [showBuildingDetails, setShowBuildingDetails] = useState(false);
 
   const accessibilityMode = state.user?.preferences.accessibilityMode;
-  const highContrast = state.user?.preferences.highContrast;
 
   // Get user location
   useEffect(() => {
@@ -196,7 +198,7 @@ export default function CampusMapScreen() {
   };
 
   return (
-    <View style={[styles.container, highContrast && styles.containerHighContrast]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Map */}
       <MapView
         ref={mapRef}
@@ -207,7 +209,6 @@ export default function CampusMapScreen() {
           longitudeDelta: 0.01,
         }}
         showsUserLocation={true}
-        showsMyLocationButton={true}
         accessible={true}
         accessibilityLabel="Campus map"
       >
@@ -229,12 +230,17 @@ export default function CampusMapScreen() {
           >
             <View style={[
               styles.markerContainer,
-              selectedBuilding?.id === building.id && styles.markerSelected,
+              {
+                backgroundColor: selectedBuilding?.id === building.id ? theme.colors.secondary : theme.colors.primary,
+                borderColor: theme.colors.surface,
+                borderRadius: theme.borderRadius.full,
+              },
+              selectedBuilding?.id === building.id && { transform: [{ scale: 1.2 }] },
             ]}>
               <MaterialIcons
                 name={getCategoryIcon(building.category)}
                 size={20}
-                color={COLORS.white}
+                color={theme.colors.textInverse}
               />
             </View>
           </Marker>
@@ -244,29 +250,33 @@ export default function CampusMapScreen() {
         {activeRoute && (
           <Polyline
             coordinates={activeRoute.steps.map(s => s.coordinate)}
-            strokeColor={COLORS.primary}
+            strokeColor={theme.colors.primary}
             strokeWidth={4}
           />
         )}
       </MapView>
 
       {/* Search Bar */}
-      <View style={styles.searchContainer}>
+      <View style={[styles.searchContainer, { top: Platform.OS === 'ios' ? 60 : 40 }]}>
         <SearchBar
           placeholder="Search buildings, rooms..."
           value={searchQuery}
           onChangeText={setSearchQuery}
-          highContrast={highContrast}
+          variant="floating"
         />
 
         {/* Search Results */}
         {searchResults.length > 0 && (
-          <View style={[styles.searchResults, highContrast && styles.searchResultsHighContrast]}>
-            <ScrollView keyboardShouldPersistTaps="handled">
+          <SimpleCard variant="elevated" style={styles.searchResults}>
+            <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 200 }}>
               {searchResults.map((result, index) => (
                 <TouchableOpacity
                   key={index}
-                  style={styles.searchResultItem}
+                  style={[
+                    styles.searchResultItem,
+                    { borderBottomColor: theme.colors.border },
+                    index === searchResults.length - 1 && { borderBottomWidth: 0 },
+                  ]}
                   onPress={() => selectSearchResult(result)}
                   accessible={true}
                   accessibilityRole="button"
@@ -275,14 +285,14 @@ export default function CampusMapScreen() {
                   <MaterialIcons
                     name={'floors' in result ? 'business' : 'room'}
                     size={20}
-                    color={COLORS.gray}
+                    color={theme.colors.textTertiary}
                   />
                   <View style={styles.searchResultText}>
-                    <Text style={[styles.searchResultTitle, highContrast && styles.textHighContrast]}>
+                    <Text style={[styles.searchResultTitle, { color: theme.colors.textPrimary }]}>
                       {'name' in result ? result.name : `Room ${(result as Room).roomNumber}`}
                     </Text>
                     {'floors' in result && (
-                      <Text style={styles.searchResultSubtitle}>
+                      <Text style={[styles.searchResultSubtitle, { color: theme.colors.textSecondary }]}>
                         {result.shortName}
                       </Text>
                     )}
@@ -290,7 +300,7 @@ export default function CampusMapScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </View>
+          </SimpleCard>
         )}
       </View>
 
@@ -298,13 +308,17 @@ export default function CampusMapScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={styles.categoryScroll}
+        style={[styles.categoryScroll, { top: Platform.OS === 'ios' ? 120 : 100 }]}
         contentContainerStyle={styles.categoryContent}
       >
         <TouchableOpacity
           style={[
             styles.accessibleFilter,
-            showAccessibleOnly && styles.accessibleFilterActive,
+            {
+              backgroundColor: showAccessibleOnly ? theme.colors.primary : theme.colors.surface,
+              borderColor: theme.colors.primary,
+              borderRadius: theme.borderRadius.full,
+            },
           ]}
           onPress={() => {
             setShowAccessibleOnly(!showAccessibleOnly);
@@ -318,7 +332,7 @@ export default function CampusMapScreen() {
           <MaterialIcons
             name="accessible"
             size={20}
-            color={showAccessibleOnly ? COLORS.white : COLORS.primary}
+            color={showAccessibleOnly ? theme.colors.textInverse : theme.colors.primary}
           />
         </TouchableOpacity>
 
@@ -327,7 +341,11 @@ export default function CampusMapScreen() {
             key={cat.id}
             style={[
               styles.categoryChip,
-              selectedCategory === cat.id && styles.categoryChipActive,
+              {
+                backgroundColor: selectedCategory === cat.id ? theme.colors.primary : theme.colors.surface,
+                borderColor: selectedCategory === cat.id ? theme.colors.primary : theme.colors.border,
+                borderRadius: theme.borderRadius.full,
+              },
             ]}
             onPress={() => {
               setSelectedCategory(cat.id);
@@ -340,7 +358,10 @@ export default function CampusMapScreen() {
           >
             <Text style={[
               styles.categoryText,
-              selectedCategory === cat.id && styles.categoryTextActive,
+              {
+                color: selectedCategory === cat.id ? theme.colors.textInverse : theme.colors.textSecondary,
+                fontWeight: selectedCategory === cat.id ? '600' : '400',
+              },
             ]}>
               {cat.name}
             </Text>
@@ -350,13 +371,13 @@ export default function CampusMapScreen() {
 
       {/* Building Details Panel */}
       {showBuildingDetails && selectedBuilding && (
-        <View style={[styles.detailsPanel, highContrast && styles.detailsPanelHighContrast]}>
+        <SimpleCard variant="elevated" style={styles.detailsPanel}>
           <View style={styles.detailsHeader}>
             <View style={styles.detailsTitle}>
-              <Text style={[styles.buildingName, highContrast && styles.textHighContrast]}>
+              <Text style={[styles.buildingName, { color: theme.colors.textPrimary }]}>
                 {selectedBuilding.name}
               </Text>
-              <Text style={styles.buildingShortName}>
+              <Text style={[styles.buildingShortName, { color: theme.colors.textSecondary }]}>
                 {selectedBuilding.shortName}
               </Text>
             </View>
@@ -369,11 +390,11 @@ export default function CampusMapScreen() {
               accessibilityRole="button"
               accessibilityLabel="Close details"
             >
-              <MaterialIcons name="close" size={24} color={COLORS.gray} />
+              <MaterialIcons name="close" size={24} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          <Text style={[styles.buildingDescription, highContrast && styles.textHighContrast]}>
+          <Text style={[styles.buildingDescription, { color: theme.colors.textSecondary }]}>
             {selectedBuilding.description}
           </Text>
 
@@ -381,13 +402,22 @@ export default function CampusMapScreen() {
           {selectedBuilding.accessibilityFeatures.length > 0 && (
             <View style={styles.accessibilityBadges}>
               {selectedBuilding.accessibilityFeatures.map(feature => (
-                <View key={feature} style={styles.accessibilityBadge}>
+                <View
+                  key={feature}
+                  style={[
+                    styles.accessibilityBadge,
+                    {
+                      backgroundColor: `${theme.colors.secondary}15`,
+                      borderRadius: theme.borderRadius.md,
+                    },
+                  ]}
+                >
                   <MaterialIcons
                     name={getAccessibilityIcon(feature)}
                     size={14}
-                    color={COLORS.secondary}
+                    color={theme.colors.secondary}
                   />
-                  <Text style={styles.accessibilityText}>
+                  <Text style={[styles.accessibilityText, { color: theme.colors.secondary }]}>
                     {formatAccessibilityFeature(feature)}
                   </Text>
                 </View>
@@ -397,16 +427,16 @@ export default function CampusMapScreen() {
 
           {/* Route Info */}
           {activeRoute && (
-            <View style={styles.routeInfo}>
+            <View style={[styles.routeInfo, { backgroundColor: theme.colors.surfaceVariant, borderRadius: theme.borderRadius.md }]}>
               <View style={styles.routeInfoItem}>
-                <MaterialIcons name="straighten" size={20} color={COLORS.primary} />
-                <Text style={styles.routeInfoText}>
+                <MaterialIcons name="straighten" size={20} color={theme.colors.primary} />
+                <Text style={[styles.routeInfoText, { color: theme.colors.textPrimary }]}>
                   {formatDistance(activeRoute.distance)}
                 </Text>
               </View>
               <View style={styles.routeInfoItem}>
-                <MaterialIcons name="schedule" size={20} color={COLORS.primary} />
-                <Text style={styles.routeInfoText}>
+                <MaterialIcons name="schedule" size={20} color={theme.colors.primary} />
+                <Text style={[styles.routeInfoText, { color: theme.colors.textPrimary }]}>
                   {formatDuration(activeRoute.duration)}
                 </Text>
               </View>
@@ -419,27 +449,28 @@ export default function CampusMapScreen() {
               title="Get Directions"
               icon="directions"
               onPress={() => navigateToBuilding(selectedBuilding)}
-              style={styles.actionButton}
+              style={{ flex: 1 }}
               accessibilityHint="Get walking directions to this building"
             />
             <AccessibleButton
               title="Video Guide"
               icon="play-circle-filled"
-              variant="secondary"
+              variant="outline"
               onPress={() => playVideoRoute(selectedBuilding)}
-              style={styles.actionButton}
+              style={{ flex: 1 }}
               accessibilityHint="Watch a video showing the route"
             />
           </View>
 
           {isNavigating && activeRoute && (
-            <View style={styles.navigationPanel}>
-              <Text style={styles.navInstruction}>
+            <View style={[styles.navigationPanel, { backgroundColor: `${theme.colors.primary}15`, borderRadius: theme.borderRadius.md }]}>
+              <Text style={[styles.navInstruction, { color: theme.colors.textPrimary }]}>
                 {activeRoute.steps[0]?.instruction}
               </Text>
               <AccessibleButton
                 title="Stop Navigation"
                 variant="danger"
+                size="small"
                 onPress={() => {
                   setIsNavigating(false);
                   setActiveRoute(null);
@@ -447,7 +478,7 @@ export default function CampusMapScreen() {
               />
             </View>
           )}
-        </View>
+        </SimpleCard>
       )}
 
       {/* Video Modal */}
@@ -457,15 +488,15 @@ export default function CampusMapScreen() {
         onRequestClose={() => setShowVideoModal(false)}
       >
         <View style={styles.videoModal}>
-          <View style={styles.videoHeader}>
-            <Text style={styles.videoTitle}>Video Navigation Guide</Text>
+          <View style={[styles.videoHeader, { backgroundColor: theme.colors.surface }]}>
+            <Text style={[styles.videoTitle, { color: theme.colors.textPrimary }]}>Video Navigation Guide</Text>
             <TouchableOpacity
               onPress={() => setShowVideoModal(false)}
               accessible={true}
               accessibilityRole="button"
               accessibilityLabel="Close video"
             >
-              <MaterialIcons name="close" size={28} color={COLORS.white} />
+              <MaterialIcons name="close" size={28} color={theme.colors.textPrimary} />
             </TouchableOpacity>
           </View>
 
@@ -474,20 +505,20 @@ export default function CampusMapScreen() {
               source={{ uri: videoUrl }}
               style={styles.video}
               useNativeControls
-              resizeMode="contain"
+              resizeMode={ResizeMode.CONTAIN}
               shouldPlay
             />
           ) : (
             <View style={styles.videoPlaceholder}>
-              <MaterialIcons name="videocam-off" size={48} color={COLORS.gray} />
-              <Text style={styles.videoPlaceholderText}>
+              <MaterialIcons name="videocam-off" size={48} color={theme.colors.textTertiary} />
+              <Text style={[styles.videoPlaceholderText, { color: theme.colors.textSecondary }]}>
                 Video not available for this route
               </Text>
             </View>
           )}
 
-          <View style={styles.videoControls}>
-            <Text style={styles.videoHint}>
+          <View style={[styles.videoControls, { backgroundColor: theme.colors.surface }]}>
+            <Text style={[styles.videoHint, { color: theme.colors.textSecondary }]}>
               Follow along with the video to reach your destination
             </Text>
           </View>
@@ -530,146 +561,92 @@ function formatAccessibilityFeature(feature: string): string {
   return feature.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
+// ==========================================
+// STYLES
+// ==========================================
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  containerHighContrast: {
-    backgroundColor: '#000000',
   },
   map: {
     flex: 1,
   },
   searchContainer: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 60 : 40,
-    left: SPACING.md,
-    right: SPACING.md,
+    left: 16,
+    right: 16,
     zIndex: 10,
   },
   searchResults: {
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    marginTop: SPACING.xs,
+    marginTop: 8,
     maxHeight: 200,
-    shadowColor: COLORS.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  searchResultsHighContrast: {
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#FFFFFF',
   },
   searchResultItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: SPACING.md,
+    padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayLight,
   },
   searchResultText: {
-    marginLeft: SPACING.sm,
+    marginLeft: 12,
     flex: 1,
   },
   searchResultTitle: {
     fontSize: 16,
-    color: COLORS.black,
   },
   searchResultSubtitle: {
     fontSize: 12,
-    color: COLORS.gray,
-  },
-  textHighContrast: {
-    color: '#FFFFFF',
+    marginTop: 2,
   },
   categoryScroll: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 120 : 100,
     left: 0,
     right: 0,
     zIndex: 5,
   },
   categoryContent: {
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: 16,
   },
   accessibleFilter: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.white,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.sm,
+    marginRight: 8,
     borderWidth: 2,
-    borderColor: COLORS.primary,
-  },
-  accessibleFilterActive: {
-    backgroundColor: COLORS.primary,
   },
   categoryChip: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    backgroundColor: COLORS.white,
-    borderRadius: 20,
-    marginRight: SPACING.sm,
-    borderWidth: 1,
-    borderColor: COLORS.grayLight,
-  },
-  categoryChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
+    borderWidth: 1.5,
   },
   categoryText: {
     fontSize: 14,
-    color: COLORS.gray,
-  },
-  categoryTextActive: {
-    color: COLORS.white,
-    fontWeight: '600',
   },
   markerContainer: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: COLORS.white,
-  },
-  markerSelected: {
-    backgroundColor: COLORS.accent,
-    transform: [{ scale: 1.2 }],
   },
   detailsPanel: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.white,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: SPACING.lg,
-    shadowColor: COLORS.black,
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  detailsPanelHighContrast: {
-    backgroundColor: '#1A1A1A',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
+    padding: 20,
+    maxHeight: '60%',
   },
   detailsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: SPACING.sm,
+    marginBottom: 12,
   },
   detailsTitle: {
     flex: 1,
@@ -677,73 +654,60 @@ const styles = StyleSheet.create({
   buildingName: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.black,
   },
   buildingShortName: {
     fontSize: 14,
-    color: COLORS.gray,
     marginTop: 2,
   },
   buildingDescription: {
     fontSize: 14,
-    color: COLORS.grayDark,
-    marginBottom: SPACING.sm,
+    marginBottom: 12,
+    lineHeight: 20,
   },
   accessibilityBadges: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: SPACING.sm,
+    marginBottom: 12,
+    gap: 8,
   },
   accessibilityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E8F5E9',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: SPACING.xs,
-    marginBottom: SPACING.xs,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   accessibilityText: {
     fontSize: 12,
-    color: COLORS.secondary,
-    marginLeft: 4,
+    marginLeft: 6,
+    fontWeight: '500',
   },
   routeInfo: {
     flexDirection: 'row',
-    backgroundColor: COLORS.background,
-    padding: SPACING.sm,
-    borderRadius: 8,
-    marginBottom: SPACING.sm,
+    padding: 12,
+    marginBottom: 12,
   },
   routeInfoItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: SPACING.lg,
+    marginRight: 24,
   },
   routeInfoText: {
-    marginLeft: SPACING.xs,
+    marginLeft: 6,
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.primary,
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: SPACING.sm,
-  },
-  actionButton: {
-    flex: 1,
+    gap: 8,
   },
   navigationPanel: {
-    marginTop: SPACING.md,
-    padding: SPACING.md,
-    backgroundColor: COLORS.primaryLight,
-    borderRadius: 8,
+    marginTop: 16,
+    padding: 16,
   },
   navInstruction: {
     fontSize: 16,
-    color: COLORS.white,
-    marginBottom: SPACING.sm,
+    marginBottom: 12,
+    lineHeight: 22,
   },
   videoModal: {
     flex: 1,
@@ -753,13 +717,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: SPACING.md,
+    padding: 16,
     paddingTop: Platform.OS === 'ios' ? 60 : 40,
   },
   videoTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: COLORS.white,
   },
   video: {
     flex: 1,
@@ -771,14 +734,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   videoPlaceholderText: {
-    color: COLORS.gray,
-    marginTop: SPACING.md,
+    marginTop: 16,
+    fontSize: 14,
   },
   videoControls: {
-    padding: SPACING.lg,
+    padding: 20,
   },
   videoHint: {
-    color: COLORS.white,
     textAlign: 'center',
     fontSize: 14,
   },

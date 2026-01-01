@@ -1,9 +1,9 @@
 // ==========================================
-// Parking Screen - Crowdsourced & Predictive
-// NO IoT sensors - Community driven!
+// Parking Screen - Modern Minimal Design
+// Crowdsourced & Predictive - NO IoT sensors!
 // ==========================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,15 +14,20 @@ import {
   TextInput,
   Alert,
   RefreshControl,
+  Platform,
+  Linking,
+  Animated,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import MapView, { Marker } from 'react-native-maps';
-import * as ImagePicker from 'expo-image-picker';
 
 import AccessibleButton from '../../components/common/AccessibleButton';
-import Card from '../../components/common/Card';
-import { COLORS, SPACING, BORDER_RADIUS, CAMPUS_CONFIG } from '../../utils/constants';
+import Card, { SimpleCard } from '../../components/common/Card';
+import EmptyState from '../../components/common/EmptyState';
+import { CardSkeleton } from '../../components/common/LoadingSkeleton';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useApp } from '../../contexts/AppContext';
 import { ParkingLot, ParkedVehicle, ParkingPrediction } from '../../types';
 import { getParkingStatus } from '../../data/campusData';
 import {
@@ -33,14 +38,20 @@ import {
   getVehicleLocation,
   clearVehicleLocation,
   findNearestAvailableParking,
-  schedulePeakHourAlert,
 } from '../../services/parkingService';
-import { getRoute, formatDistance, formatDuration } from '../../services/navigationService';
 import { speak, triggerHaptic } from '../../services/accessibilityService';
-import { useApp } from '../../contexts/AppContext';
+
+// ==========================================
+// PARKING SCREEN
+// ==========================================
 
 export default function ParkingScreen() {
+  const { theme } = useTheme();
   const { state, saveParkedVehicle } = useApp();
+  const insets = useSafeAreaInsets();
+
+  // State
+  const [isLoading, setIsLoading] = useState(true);
   const [parkingLots, setParkingLots] = useState<ParkingLot[]>([]);
   const [selectedLot, setSelectedLot] = useState<ParkingLot | null>(null);
   const [parkedVehicle, setParkedVehicle] = useState<ParkedVehicle | null>(null);
@@ -53,9 +64,10 @@ export default function ParkingScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [filterAccessible, setFilterAccessible] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   const accessibilityMode = state.user?.preferences.accessibilityMode;
-  const highContrast = state.user?.preferences.highContrast;
+  const bottomPadding = Platform.OS === 'android' ? Math.max(insets.bottom, 16) : 0;
 
   // Load data
   useEffect(() => {
@@ -65,10 +77,11 @@ export default function ParkingScreen() {
 
   const loadData = async () => {
     try {
+      setIsLoading(true);
       const lots = await getParkingLots();
       setParkingLots(lots);
 
-      // Load predictions for all lots
+      // Load predictions
       const predPromises = lots.map(lot => predictParkingAvailability(lot.id));
       const preds = await Promise.all(predPromises);
       const predMap: Record<string, ParkingPrediction> = {};
@@ -85,6 +98,8 @@ export default function ParkingScreen() {
       }
     } catch (error) {
       console.error('Error loading parking data:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -105,6 +120,77 @@ export default function ParkingScreen() {
     setRefreshing(false);
     triggerHaptic('light');
   };
+
+  // Navigate to vehicle location using maps app
+  const handleNavigateToVehicle = useCallback(async () => {
+    if (!parkedVehicle) return;
+
+    setIsNavigating(true);
+    triggerHaptic('medium');
+
+    if (accessibilityMode) {
+      speak('Opening navigation to your parked vehicle');
+    }
+
+    try {
+      const { latitude, longitude } = parkedVehicle;
+      const lot = parkingLots.find(l => l.id === parkedVehicle.parkingLotId);
+      const label = lot ? `My Car at ${lot.name}` : 'My Parked Car';
+
+      // Create maps URL (works on both iOS and Android)
+      let url: string;
+      if (Platform.OS === 'ios') {
+        url = `maps:0,0?q=${label}@${latitude},${longitude}`;
+      } else {
+        url = `geo:${latitude},${longitude}?q=${latitude},${longitude}(${encodeURIComponent(label)})`;
+      }
+
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        // Fallback to Google Maps web URL
+        const webUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+        await Linking.openURL(webUrl);
+      }
+    } catch (error) {
+      console.error('Error opening navigation:', error);
+      Alert.alert('Navigation Error', 'Could not open maps application.');
+    } finally {
+      setIsNavigating(false);
+    }
+  }, [parkedVehicle, parkingLots, accessibilityMode]);
+
+  // Navigate to parking lot
+  const handleNavigateToLot = useCallback(async (lot: ParkingLot) => {
+    triggerHaptic('medium');
+
+    if (accessibilityMode) {
+      speak(`Opening navigation to ${lot.name}`);
+    }
+
+    try {
+      const { latitude, longitude } = lot;
+      const label = lot.name;
+
+      let url: string;
+      if (Platform.OS === 'ios') {
+        url = `maps:0,0?q=${label}@${latitude},${longitude}`;
+      } else {
+        url = `geo:${latitude},${longitude}?q=${latitude},${longitude}(${encodeURIComponent(label)})`;
+      }
+
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        const webUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+        await Linking.openURL(webUrl);
+      }
+    } catch (error) {
+      Alert.alert('Navigation Error', 'Could not open maps application.');
+    }
+  }, [accessibilityMode]);
 
   // Report parking availability
   const handleReport = async () => {
@@ -197,17 +283,22 @@ export default function ParkingScreen() {
     }
   };
 
-  // Get status color
-  const getStatusColor = (lot: ParkingLot) => {
-    const status = getParkingStatus(lot);
-    switch (status) {
-      case 'available':
-        return COLORS.parkingAvailable;
-      case 'moderate':
-        return COLORS.parkingModerate;
-      case 'full':
-        return COLORS.parkingFull;
+  // Get status color and info
+  const getStatusInfo = (lot: ParkingLot) => {
+    const occupancy = ((lot.totalSpots - lot.availableSpots) / lot.totalSpots) * 100;
+
+    let color = theme.colors.success;
+    let label = 'Available';
+
+    if (occupancy > 90) {
+      color = theme.colors.error;
+      label = 'Full';
+    } else if (occupancy > 70) {
+      color = theme.colors.warning;
+      label = 'Filling Up';
     }
+
+    return { color, label, occupancy };
   };
 
   // Filter lots
@@ -215,12 +306,33 @@ export default function ParkingScreen() {
     ? parkingLots.filter(lot => lot.isAccessible)
     : parkingLots;
 
+  // Time since parked
+  const getTimeSinceParked = () => {
+    if (!parkedVehicle) return '';
+    const parkedTime = new Date(parkedVehicle.parkedAt);
+    const now = new Date();
+    const diffMs = now.getTime() - parkedTime.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+
+    if (diffMins < 60) return `${diffMins} min ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ${diffMins % 60}m ago`;
+    return `${Math.floor(diffHours / 24)}d ago`;
+  };
+
   return (
-    <View style={[styles.container, highContrast && styles.containerHighContrast]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header Actions */}
-      <View style={styles.headerActions}>
+      <View style={[styles.headerActions, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
         <TouchableOpacity
-          style={[styles.filterButton, filterAccessible && styles.filterButtonActive]}
+          style={[
+            styles.filterButton,
+            {
+              backgroundColor: filterAccessible ? theme.colors.primary : 'transparent',
+              borderColor: theme.colors.primary,
+              borderRadius: theme.borderRadius.full,
+            },
+          ]}
           onPress={() => {
             setFilterAccessible(!filterAccessible);
             triggerHaptic('light');
@@ -232,13 +344,15 @@ export default function ParkingScreen() {
         >
           <MaterialIcons
             name="accessible"
-            size={20}
-            color={filterAccessible ? COLORS.white : COLORS.primary}
+            size={18}
+            color={filterAccessible ? theme.colors.textInverse : theme.colors.primary}
           />
-          <Text style={[
-            styles.filterText,
-            filterAccessible && styles.filterTextActive,
-          ]}>
+          <Text
+            style={[
+              styles.filterText,
+              { color: filterAccessible ? theme.colors.textInverse : theme.colors.primary },
+            ]}
+          >
             Accessible
           </Text>
         </TouchableOpacity>
@@ -247,6 +361,7 @@ export default function ParkingScreen() {
           title="Find Nearest"
           icon="near-me"
           size="small"
+          variant="outline"
           onPress={handleFindNearest}
           accessibilityHint="Find the nearest available parking"
         />
@@ -254,112 +369,150 @@ export default function ParkingScreen() {
 
       {/* Parked Vehicle Card */}
       {parkedVehicle && (
-        <Card
-          icon="directions-car"
-          iconColor={COLORS.secondary}
-          title="Your Parked Vehicle"
-          style={styles.parkedCard}
-          highContrast={highContrast}
-        >
-          <View style={styles.parkedInfo}>
-            <Text style={[styles.parkedLot, highContrast && styles.textHighContrast]}>
-              {parkingLots.find(l => l.id === parkedVehicle.parkingLotId)?.name || 'Unknown'}
-            </Text>
-            {parkedVehicle.spotNumber && (
-              <Text style={styles.parkedSpot}>Spot: {parkedVehicle.spotNumber}</Text>
-            )}
-            <Text style={styles.parkedTime}>
-              Parked: {new Date(parkedVehicle.parkedAt).toLocaleTimeString()}
-            </Text>
+        <SimpleCard variant="elevated" style={styles.parkedCard}>
+          <View style={styles.parkedHeader}>
+            <View style={[styles.parkedIconContainer, { backgroundColor: `${theme.colors.secondary}15` }]}>
+              <MaterialIcons name="directions-car" size={24} color={theme.colors.secondary} />
+            </View>
+            <View style={styles.parkedInfo}>
+              <Text style={[styles.parkedTitle, { color: theme.colors.textPrimary }]}>
+                Your Vehicle
+              </Text>
+              <Text style={[styles.parkedLot, { color: theme.colors.textSecondary }]}>
+                {parkingLots.find(l => l.id === parkedVehicle.parkingLotId)?.name || 'Unknown Location'}
+                {parkedVehicle.spotNumber && ` • Spot ${parkedVehicle.spotNumber}`}
+              </Text>
+              <Text style={[styles.parkedTime, { color: theme.colors.textTertiary }]}>
+                Parked {getTimeSinceParked()}
+              </Text>
+            </View>
           </View>
+
           <View style={styles.parkedActions}>
             <AccessibleButton
-              title="Navigate"
+              title={isNavigating ? 'Opening...' : 'Navigate'}
               icon="navigation"
               size="small"
-              onPress={() => {
-                // Navigate to vehicle
-                if (accessibilityMode) {
-                  speak('Navigating to your parked vehicle');
-                }
-              }}
+              onPress={handleNavigateToVehicle}
+              disabled={isNavigating}
+              style={{ flex: 1 }}
             />
             <AccessibleButton
               title="Clear"
-              icon="delete"
+              icon="close"
               size="small"
-              variant="outline"
+              variant="ghost"
               onPress={handleClearVehicle}
             />
           </View>
-        </Card>
+        </SimpleCard>
       )}
 
       {/* Parking Lots List */}
       <ScrollView
         style={styles.listContainer}
+        contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.primary}
+          />
         }
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.sectionTitle, highContrast && styles.textHighContrast]}>
-          Parking Availability
-        </Text>
-        <Text style={styles.updateHint}>
-          Pull to refresh • Tap to see details • Help update availability
-        </Text>
+        {/* Section Header */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>
+            Parking Lots
+          </Text>
+          <Text style={[styles.updateHint, { color: theme.colors.textTertiary }]}>
+            Pull to refresh • Tap for details
+          </Text>
+        </View>
 
-        {filteredLots.map(lot => {
+        {/* Loading State */}
+        {isLoading && (
+          <>
+            <CardSkeleton />
+            <CardSkeleton />
+            <CardSkeleton />
+          </>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && filteredLots.length === 0 && (
+          <EmptyState
+            icon="local-parking"
+            title={filterAccessible ? 'No accessible parking lots' : 'No parking data'}
+            description={filterAccessible ? 'Try adjusting your filters' : 'Parking information is not available at the moment'}
+            actionLabel="Refresh"
+            onAction={loadData}
+          />
+        )}
+
+        {/* Parking Lots */}
+        {!isLoading && filteredLots.map(lot => {
+          const { color, label, occupancy } = getStatusInfo(lot);
           const prediction = predictions[lot.id];
-          const status = getParkingStatus(lot);
+          const isSelected = selectedLot?.id === lot.id;
 
           return (
             <TouchableOpacity
               key={lot.id}
               style={[
                 styles.parkingCard,
-                highContrast && styles.parkingCardHighContrast,
-                selectedLot?.id === lot.id && styles.parkingCardSelected,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderRadius: theme.borderRadius.lg,
+                  borderColor: isSelected ? theme.colors.primary : 'transparent',
+                },
+                isSelected && theme.shadows.md,
               ]}
               onPress={() => {
-                setSelectedLot(lot);
+                setSelectedLot(isSelected ? null : lot);
                 triggerHaptic('light');
               }}
               accessible={true}
               accessibilityRole="button"
-              accessibilityLabel={`${lot.name}, ${lot.availableSpots} of ${lot.totalSpots} spots available, ${status}`}
+              accessibilityLabel={`${lot.name}, ${lot.availableSpots} of ${lot.totalSpots} spots available, ${label}`}
             >
+              {/* Header Row */}
               <View style={styles.parkingHeader}>
                 <View style={styles.parkingTitleRow}>
-                  <Text style={[styles.parkingName, highContrast && styles.textHighContrast]}>
+                  <Text style={[styles.parkingName, { color: theme.colors.textPrimary }]}>
                     {lot.name}
                   </Text>
                   {lot.isAccessible && (
-                    <MaterialIcons name="accessible" size={18} color={COLORS.secondary} />
+                    <View style={[styles.accessibleBadge, { backgroundColor: `${theme.colors.secondary}15` }]}>
+                      <MaterialIcons name="accessible" size={14} color={theme.colors.secondary} />
+                    </View>
                   )}
                 </View>
-                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(lot) }]}>
-                  <Text style={styles.statusText}>
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
-                  </Text>
+                <View style={[styles.statusBadge, { backgroundColor: `${color}15` }]}>
+                  <View style={[styles.statusDot, { backgroundColor: color }]} />
+                  <Text style={[styles.statusText, { color }]}>{label}</Text>
                 </View>
               </View>
 
+              {/* Stats */}
               <View style={styles.parkingStats}>
                 <View style={styles.spotCounter}>
-                  <Text style={[styles.spotNumber, { color: getStatusColor(lot) }]}>
+                  <Text style={[styles.spotNumber, { color }]}>
                     {lot.availableSpots}
                   </Text>
-                  <Text style={styles.spotLabel}>/ {lot.totalSpots} spots</Text>
+                  <Text style={[styles.spotLabel, { color: theme.colors.textSecondary }]}>
+                    / {lot.totalSpots} spots
+                  </Text>
                 </View>
 
-                <View style={styles.occupancyBar}>
-                  <View
+                <View style={[styles.occupancyBar, { backgroundColor: theme.colors.border }]}>
+                  <Animated.View
                     style={[
                       styles.occupancyFill,
                       {
-                        width: `${((lot.totalSpots - lot.availableSpots) / lot.totalSpots) * 100}%`,
-                        backgroundColor: getStatusColor(lot),
+                        width: `${occupancy}%`,
+                        backgroundColor: color,
                       },
                     ]}
                   />
@@ -368,84 +521,71 @@ export default function ParkingScreen() {
 
               {/* Prediction */}
               {prediction && prediction.confidence > 0.5 && (
-                <View style={styles.predictionRow}>
-                  <MaterialIcons name="trending-up" size={16} color={COLORS.info} />
-                  <Text style={styles.predictionText}>
+                <View style={[styles.predictionRow, { backgroundColor: `${theme.colors.info}10` }]}>
+                  <MaterialIcons name="insights" size={14} color={theme.colors.info} />
+                  <Text style={[styles.predictionText, { color: theme.colors.info }]}>
                     {prediction.recommendation}
                   </Text>
                 </View>
               )}
 
               {/* Last Updated */}
-              <Text style={styles.lastUpdated}>
-                Updated: {new Date(lot.lastUpdated).toLocaleTimeString()}
+              <Text style={[styles.lastUpdated, { color: theme.colors.textTertiary }]}>
+                Updated {new Date(lot.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </Text>
+
+              {/* Selected Actions */}
+              {isSelected && (
+                <View style={[styles.selectedActions, { borderTopColor: theme.colors.border }]}>
+                  <AccessibleButton
+                    title="Navigate"
+                    icon="navigation"
+                    size="small"
+                    variant="outline"
+                    onPress={() => handleNavigateToLot(lot)}
+                    style={{ flex: 1 }}
+                  />
+                  <AccessibleButton
+                    title="Park Here"
+                    icon="local-parking"
+                    size="small"
+                    onPress={() => setShowParkModal(true)}
+                    style={{ flex: 1 }}
+                  />
+                  <AccessibleButton
+                    title="Report"
+                    icon="edit"
+                    size="small"
+                    variant="ghost"
+                    onPress={() => setShowReportModal(true)}
+                  />
+                </View>
+              )}
             </TouchableOpacity>
           );
         })}
 
         {/* Community Help Banner */}
-        <Card style={styles.communityCard} highContrast={highContrast}>
-          <View style={styles.communityContent}>
-            <MaterialIcons name="people" size={32} color={COLORS.primary} />
-            <View style={styles.communityText}>
-              <Text style={[styles.communityTitle, highContrast && styles.textHighContrast]}>
-                Help Your Community
-              </Text>
-              <Text style={styles.communityDesc}>
-                Report parking availability to help fellow students find spots faster!
-              </Text>
+        {!isLoading && filteredLots.length > 0 && (
+          <View style={[styles.communityCard, { backgroundColor: `${theme.colors.primary}15` }]}>
+            <View style={styles.communityContent}>
+              <View style={[styles.communityIcon, { backgroundColor: `${theme.colors.primary}15` }]}>
+                <MaterialIcons name="people" size={24} color={theme.colors.primary} />
+              </View>
+              <View style={styles.communityText}>
+                <Text style={[styles.communityTitle, { color: theme.colors.textPrimary }]}>
+                  Help Your Community
+                </Text>
+                <Text style={[styles.communityDesc, { color: theme.colors.textSecondary }]}>
+                  Report parking availability to help fellow students
+                </Text>
+              </View>
             </View>
           </View>
-          <AccessibleButton
-            title="Report Now"
-            icon="edit"
-            onPress={() => {
-              if (selectedLot) {
-                setShowReportModal(true);
-              } else {
-                Alert.alert('Select Parking', 'Please select a parking lot first.');
-              }
-            }}
-            fullWidth
-          />
-        </Card>
+        )}
 
         <View style={styles.bottomPadding} />
       </ScrollView>
-
-      {/* Selected Lot Actions */}
-      {selectedLot && (
-        <View style={[styles.actionBar, highContrast && styles.actionBarHighContrast]}>
-          <View style={styles.selectedInfo}>
-            <Text style={[styles.selectedName, highContrast && styles.textHighContrast]}>
-              {selectedLot.name}
-            </Text>
-            <Text style={styles.selectedSpots}>
-              {selectedLot.availableSpots} spots available
-            </Text>
-          </View>
-          <View style={styles.actionButtons}>
-            <AccessibleButton
-              title="Navigate"
-              icon="navigation"
-              size="small"
-              onPress={() => {
-                if (accessibilityMode) {
-                  speak(`Navigating to ${selectedLot.name}`);
-                }
-              }}
-            />
-            <AccessibleButton
-              title="Park Here"
-              icon="local-parking"
-              size="small"
-              variant="secondary"
-              onPress={() => setShowParkModal(true)}
-            />
-          </View>
-        </View>
-      )}
 
       {/* Report Modal */}
       <Modal
@@ -455,39 +595,52 @@ export default function ParkingScreen() {
         onRequestClose={() => setShowReportModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, highContrast && styles.modalContentHighContrast]}>
-            <Text style={[styles.modalTitle, highContrast && styles.textHighContrast]}>
-              Report Availability
-            </Text>
-            <Text style={styles.modalSubtitle}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface, borderRadius: theme.borderRadius.xl }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>
+                Report Availability
+              </Text>
+              <TouchableOpacity onPress={() => setShowReportModal(false)}>
+                <MaterialIcons name="close" size={24} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
               How many spots are available at {selectedLot?.name}?
             </Text>
 
             <TextInput
-              style={[styles.input, highContrast && styles.inputHighContrast]}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.colors.surfaceVariant,
+                  borderColor: theme.colors.border,
+                  color: theme.colors.textPrimary,
+                  borderRadius: theme.borderRadius.md,
+                },
+              ]}
               placeholder="Number of available spots"
-              placeholderTextColor={COLORS.gray}
+              placeholderTextColor={theme.colors.textTertiary}
               keyboardType="number-pad"
               value={reportSpots}
               onChangeText={setReportSpots}
-              accessible={true}
-              accessibilityLabel="Number of available spots"
             />
 
             <View style={styles.modalActions}>
               <AccessibleButton
                 title="Cancel"
-                variant="outline"
+                variant="ghost"
                 onPress={() => {
                   setShowReportModal(false);
                   setReportSpots('');
                 }}
-                style={styles.modalButton}
+                style={{ flex: 1 }}
               />
               <AccessibleButton
-                title="Submit"
+                title="Submit Report"
+                icon="check"
                 onPress={handleReport}
-                style={styles.modalButton}
+                style={{ flex: 1 }}
               />
             </View>
           </View>
@@ -502,51 +655,70 @@ export default function ParkingScreen() {
         onRequestClose={() => setShowParkModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, highContrast && styles.modalContentHighContrast]}>
-            <Text style={[styles.modalTitle, highContrast && styles.textHighContrast]}>
-              Save Vehicle Location
-            </Text>
-            <Text style={styles.modalSubtitle}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface, borderRadius: theme.borderRadius.xl }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>
+                Save Vehicle Location
+              </Text>
+              <TouchableOpacity onPress={() => setShowParkModal(false)}>
+                <MaterialIcons name="close" size={24} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
               Remember where you parked at {selectedLot?.name}
             </Text>
 
             <TextInput
-              style={[styles.input, highContrast && styles.inputHighContrast]}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.colors.surfaceVariant,
+                  borderColor: theme.colors.border,
+                  color: theme.colors.textPrimary,
+                  borderRadius: theme.borderRadius.md,
+                },
+              ]}
               placeholder="Spot number (optional)"
-              placeholderTextColor={COLORS.gray}
+              placeholderTextColor={theme.colors.textTertiary}
               value={spotNumber}
               onChangeText={setSpotNumber}
-              accessible={true}
-              accessibilityLabel="Parking spot number"
             />
 
             <TextInput
-              style={[styles.input, styles.notesInput, highContrast && styles.inputHighContrast]}
+              style={[
+                styles.input,
+                styles.notesInput,
+                {
+                  backgroundColor: theme.colors.surfaceVariant,
+                  borderColor: theme.colors.border,
+                  color: theme.colors.textPrimary,
+                  borderRadius: theme.borderRadius.md,
+                },
+              ]}
               placeholder="Notes (e.g., near exit, level 2)"
-              placeholderTextColor={COLORS.gray}
+              placeholderTextColor={theme.colors.textTertiary}
               value={notes}
               onChangeText={setNotes}
               multiline
-              accessible={true}
-              accessibilityLabel="Parking notes"
             />
 
             <View style={styles.modalActions}>
               <AccessibleButton
                 title="Cancel"
-                variant="outline"
+                variant="ghost"
                 onPress={() => {
                   setShowParkModal(false);
                   setSpotNumber('');
                   setNotes('');
                 }}
-                style={styles.modalButton}
+                style={{ flex: 1 }}
               />
               <AccessibleButton
                 title="Save Location"
                 icon="save"
                 onPress={handleParkVehicle}
-                style={styles.modalButton}
+                style={{ flex: 1 }}
               />
             </View>
           </View>
@@ -556,273 +728,231 @@ export default function ParkingScreen() {
   );
 }
 
+// ==========================================
+// STYLES
+// ==========================================
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  containerHighContrast: {
-    backgroundColor: '#000000',
   },
   headerActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: SPACING.md,
-    backgroundColor: COLORS.white,
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayLight,
   },
   filterButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-  },
-  filterButtonActive: {
-    backgroundColor: COLORS.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1.5,
+    gap: 6,
   },
   filterText: {
-    marginLeft: SPACING.xs,
-    color: COLORS.primary,
-    fontWeight: '500',
-  },
-  filterTextActive: {
-    color: COLORS.white,
+    fontSize: 13,
+    fontWeight: '600',
   },
   parkedCard: {
-    margin: SPACING.md,
+    margin: 16,
     marginBottom: 0,
   },
+  parkedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  parkedIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
   parkedInfo: {
-    marginBottom: SPACING.sm,
+    flex: 1,
+  },
+  parkedTitle: {
+    fontSize: 16,
+    fontWeight: '700',
   },
   parkedLot: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.black,
-  },
-  parkedSpot: {
     fontSize: 14,
-    color: COLORS.gray,
     marginTop: 2,
   },
   parkedTime: {
     fontSize: 12,
-    color: COLORS.gray,
     marginTop: 2,
   },
   parkedActions: {
     flexDirection: 'row',
-    gap: SPACING.sm,
-  },
-  textHighContrast: {
-    color: '#FFFFFF',
+    gap: 8,
   },
   listContainer: {
     flex: 1,
-    padding: SPACING.md,
+  },
+  listContent: {
+    padding: 16,
+  },
+  sectionHeader: {
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.black,
-    marginBottom: SPACING.xs,
   },
   updateHint: {
     fontSize: 12,
-    color: COLORS.gray,
-    marginBottom: SPACING.md,
+    marginTop: 4,
   },
   parkingCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
+    padding: 16,
+    marginBottom: 12,
     borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  parkingCardHighContrast: {
-    backgroundColor: '#1A1A1A',
-    borderColor: '#333333',
-  },
-  parkingCardSelected: {
-    borderColor: COLORS.primary,
   },
   parkingHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.sm,
+    marginBottom: 12,
   },
   parkingTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
+    gap: 8,
   },
   parkingName: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.black,
+  },
+  accessibleBadge: {
+    padding: 4,
+    borderRadius: 6,
   },
   statusBadge: {
-    paddingHorizontal: SPACING.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: BORDER_RADIUS.full,
+    borderRadius: 100,
+    gap: 6,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   statusText: {
     fontSize: 12,
     fontWeight: '600',
-    color: COLORS.white,
   },
   parkingStats: {
-    marginBottom: SPACING.sm,
+    marginBottom: 12,
   },
   spotCounter: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginBottom: SPACING.xs,
+    marginBottom: 8,
   },
   spotNumber: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '700',
   },
   spotLabel: {
     fontSize: 14,
-    color: COLORS.gray,
-    marginLeft: SPACING.xs,
+    marginLeft: 4,
   },
   occupancyBar: {
-    height: 8,
-    backgroundColor: COLORS.grayLight,
-    borderRadius: 4,
+    height: 6,
+    borderRadius: 3,
     overflow: 'hidden',
   },
   occupancyFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 3,
   },
   predictionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E3F2FD',
-    padding: SPACING.sm,
-    borderRadius: BORDER_RADIUS.md,
-    marginBottom: SPACING.xs,
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 8,
+    gap: 8,
   },
   predictionText: {
     fontSize: 12,
-    color: COLORS.info,
-    marginLeft: SPACING.xs,
     flex: 1,
   },
   lastUpdated: {
     fontSize: 11,
-    color: COLORS.gray,
+  },
+  selectedActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
   },
   communityCard: {
-    marginTop: SPACING.md,
+    marginTop: 8,
   },
   communityContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+  },
+  communityIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   communityText: {
-    marginLeft: SPACING.md,
     flex: 1,
   },
   communityTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: COLORS.black,
   },
   communityDesc: {
-    fontSize: 14,
-    color: COLORS.gray,
+    fontSize: 13,
     marginTop: 2,
   },
   bottomPadding: {
     height: 100,
   },
-  actionBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: COLORS.white,
-    padding: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.grayLight,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  actionBarHighContrast: {
-    backgroundColor: '#1A1A1A',
-    borderTopColor: '#FFFFFF',
-  },
-  selectedInfo: {
-    flex: 1,
-  },
-  selectedName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.black,
-  },
-  selectedSpots: {
-    fontSize: 14,
-    color: COLORS.gray,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: SPACING.lg,
+    justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.lg,
-    width: '100%',
-    maxWidth: 400,
+    padding: 24,
+    paddingBottom: 40,
   },
-  modalContentHighContrast: {
-    backgroundColor: '#1A1A1A',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.black,
-    marginBottom: SPACING.xs,
   },
   modalSubtitle: {
     fontSize: 14,
-    color: COLORS.gray,
-    marginBottom: SPACING.lg,
+    marginBottom: 20,
   },
   input: {
     borderWidth: 1,
-    borderColor: COLORS.grayLight,
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
+    padding: 14,
     fontSize: 16,
-    marginBottom: SPACING.md,
-  },
-  inputHighContrast: {
-    backgroundColor: '#000000',
-    borderColor: '#FFFFFF',
-    color: '#FFFFFF',
+    marginBottom: 12,
   },
   notesInput: {
     height: 80,
@@ -830,9 +960,7 @@ const styles = StyleSheet.create({
   },
   modalActions: {
     flexDirection: 'row',
-    gap: SPACING.sm,
-  },
-  modalButton: {
-    flex: 1,
+    gap: 12,
+    marginTop: 8,
   },
 });

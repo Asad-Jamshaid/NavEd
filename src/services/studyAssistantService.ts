@@ -17,6 +17,7 @@ import {
   AssignmentTask,
 } from '../types';
 import { STUDY_CONFIG, LLM_CONFIG } from '../utils/constants';
+import axios from 'axios';
 
 const STORAGE_KEYS = {
   DOCUMENTS: '@naved_study_documents',
@@ -115,7 +116,13 @@ function getDocumentType(filename: string): Document['type'] {
 }
 
 // ==========================================
-// Text Extraction (Basic - works offline)
+// PDF Extraction API Configuration
+// Set this to your Vercel deployment URL
+// ==========================================
+const PDF_API_URL = process.env.EXPO_PUBLIC_PDF_API_URL || 'https://your-app.vercel.app';
+
+// ==========================================
+// Text Extraction with PDF Support
 // ==========================================
 export async function extractTextFromDocument(doc: Document): Promise<string> {
   try {
@@ -125,12 +132,13 @@ export async function extractTextFromDocument(doc: Document): Promise<string> {
       return content;
     }
 
-    // For PDFs and other formats, we provide a simple approach
-    // Users should use .txt files for best results
-    // For production, consider using a PDF library
+    if (doc.type === 'pdf') {
+      // Use Vercel API for PDF extraction
+      return await extractTextFromPDF(doc);
+    }
 
+    // For other formats, try to read as text
     try {
-      // Try to read as text first (might work for some formats)
       const content = await FileSystem.readAsStringAsync(doc.uri);
       if (content && content.length > 100) {
         return content;
@@ -139,10 +147,59 @@ export async function extractTextFromDocument(doc: Document): Promise<string> {
       // File is binary, cannot read as text
     }
 
-    return `Document loaded: ${doc.name}. For best results with AI features, please use .txt files. You can copy text from your PDF and paste it into a text file.`;
+    return `Document loaded: ${doc.name}. For best results with AI features, please use .txt files or PDFs.`;
   } catch (error) {
     console.error('Error extracting text:', error);
     return `Document: ${doc.name}. Unable to extract text. Please try using a .txt file.`;
+  }
+}
+
+// ==========================================
+// Extract Text from PDF using Vercel API
+// ==========================================
+async function extractTextFromPDF(doc: Document): Promise<string> {
+  try {
+    // Read PDF as base64
+    const base64 = await FileSystem.readAsStringAsync(doc.uri, {
+      encoding: 'base64' as any,
+    });
+
+    // Call Vercel API
+    const response = await axios.post(
+      `${PDF_API_URL}/api/extract-pdf`,
+      {
+        pdfData: base64,
+        filename: doc.name,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000, // 30 second timeout
+      }
+    );
+
+    if (response.data.success) {
+      console.log(`PDF extracted: ${response.data.metadata.pages} pages, ${response.data.metadata.textLength} characters`);
+      return response.data.text;
+    } else {
+      throw new Error(response.data.error || 'PDF extraction failed');
+    }
+  } catch (error: any) {
+    console.error('PDF extraction error:', error);
+
+    // Check if API is configured
+    if (PDF_API_URL.includes('your-app')) {
+      return `PDF extraction requires backend setup. Please:\n\n1. Deploy the /api folder to Vercel (free)\n2. Set EXPO_PUBLIC_PDF_API_URL environment variable\n\nAlternatively, use .txt files for now.\n\nSee docs/research/PDF_EXTRACTION_SOLUTIONS.md for details.`;
+    }
+
+    // API error
+    if (error.response) {
+      return `PDF extraction failed: ${error.response.data.error || error.response.statusText}`;
+    }
+
+    // Network error
+    return `PDF extraction failed: ${error.message}. Check your internet connection.`;
   }
 }
 

@@ -23,7 +23,8 @@ type AppAction =
   | { type: 'REMOVE_DOCUMENT'; payload: string }
   | { type: 'SET_PARKING_ALERTS'; payload: ParkingAlert[] }
   | { type: 'UPDATE_PREFERENCES'; payload: Partial<UserPreferences> }
-  | { type: 'TOGGLE_ACCESSIBILITY'; payload: boolean };
+  | { type: 'TOGGLE_ACCESSIBILITY'; payload: boolean }
+  | { type: 'RESET_STATE' };
 
 // ==========================================
 // Initial State
@@ -80,6 +81,11 @@ function appReducer(state: AppState, action: AppAction): AppState {
       };
     case 'TOGGLE_ACCESSIBILITY':
       return { ...state, isAccessibilityMode: action.payload };
+    case 'RESET_STATE':
+      return {
+        ...initialState,
+        isLoading: false,
+      };
     default:
       return state;
   }
@@ -95,6 +101,7 @@ interface AppContextType {
   updatePreferences: (prefs: Partial<UserPreferences>) => Promise<void>;
   addDocument: (doc: Document) => Promise<void>;
   removeDocument: (docId: string) => Promise<void>;
+  clearAllData: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -196,6 +203,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const clearAllData = async () => {
+    try {
+      // Clear all storage keys
+      await AsyncStorage.multiRemove([
+        STORAGE_KEYS.USER,
+        STORAGE_KEYS.PARKED_VEHICLE,
+        STORAGE_KEYS.DOCUMENTS,
+        STORAGE_KEYS.PARKING_ALERTS,
+        '@naved_theme_mode',
+        '@naved_font_scale',
+        '@naved_high_contrast',
+        '@naved_accessibility_settings',
+        '@naved_chat_history',
+        '@naved_api_keys',
+      ]);
+      // Reset state to initial
+      dispatch({ type: 'RESET_STATE' });
+    } catch (error) {
+      console.error('Error clearing all data:', error);
+      throw error;
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -205,6 +235,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updatePreferences,
         addDocument,
         removeDocument,
+        clearAllData,
       }}
     >
       {children}
