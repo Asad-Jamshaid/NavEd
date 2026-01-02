@@ -32,7 +32,7 @@ const STORAGE_KEYS = {
 // Store these securely - users should add their own FREE keys
 // ==========================================
 let API_KEYS = {
-  gemini: '', // Get free at: https://makersuite.google.com/app/apikey
+  gemini: 'AIzaSyDGxVw7NQAjM3ZIi1Pc4V6_UidRIEagczw', // Google Gemini API Key
   groq: '', // Get free at: https://console.groq.com/keys
   huggingface: '', // Get free at: https://huggingface.co/settings/tokens
 };
@@ -48,9 +48,19 @@ export async function loadApiKeys() {
     AsyncStorage.getItem('@naved_api_key_groq'),
     AsyncStorage.getItem('@naved_api_key_huggingface'),
   ]);
-  if (gemini) API_KEYS.gemini = gemini;
-  if (groq) API_KEYS.groq = groq;
-  if (huggingface) API_KEYS.huggingface = huggingface;
+  // Only override if a saved key exists (preserve default Gemini key)
+  if (gemini && gemini.length > 0) API_KEYS.gemini = gemini;
+  if (groq && groq.length > 0) API_KEYS.groq = groq;
+  if (huggingface && huggingface.length > 0) API_KEYS.huggingface = huggingface;
+}
+
+// Get current API key status (for settings screen)
+export function getApiKeyStatus(): { gemini: boolean; groq: boolean; huggingface: boolean } {
+  return {
+    gemini: API_KEYS.gemini.length > 0,
+    groq: API_KEYS.groq.length > 0,
+    huggingface: API_KEYS.huggingface.length > 0,
+  };
 }
 
 // ==========================================

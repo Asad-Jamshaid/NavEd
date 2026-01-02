@@ -122,10 +122,10 @@ export const OSM_CONFIG = {
 
 // Free LLM APIs (with generous free tiers)
 export const LLM_CONFIG = {
-  // Google Gemini - FREE tier: 60 requests/minute
+  // Google Gemini - FREE tier available (Dec 2025)
   gemini: {
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
-    model: 'gemini-1.5-flash', // Free tier model
+    model: 'gemini-3-flash', // Latest Gemini 3 Flash model
     // API key should be stored securely - this is just for reference
   },
   // HuggingFace - FREE inference API
@@ -155,8 +155,8 @@ export const SUPABASE_CONFIG = {
 export const CAMPUS_CONFIG = {
   // University of Central Punjab - Johar Town, Lahore
   center: {
-    latitude: 31.4700,  // UCP Main Campus, Khayaban-e-Jinnah Road, Johar Town
-    longitude: 74.2800,
+    latitude: 31.446939,  // UCP Main Campus, Khayaban-e-Jinnah Road, Johar Town
+    longitude: 74.267673,
   },
   defaultZoom: 16,
   minZoom: 14,
