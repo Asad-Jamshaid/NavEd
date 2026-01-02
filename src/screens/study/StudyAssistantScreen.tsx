@@ -216,12 +216,16 @@ export default function StudyAssistantScreen() {
       if (accessibilityMode) {
         speak(response.slice(0, 200)); // Read first 200 chars
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Chat error:', error);
+      const errorMessage = error?.message?.includes('API Error')
+        ? 'Document summarization requires an LLM API. Please add your free API key in Settings to enable this feature.'
+        : 'Sorry, I encountered an error. Please make sure you have a valid API key configured in Settings.';
+
       setChatMessages(prev => [...prev, {
         id: `msg-${Date.now() + 1}`,
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please check your API key in settings.',
+        content: errorMessage,
         timestamp: new Date(),
       }]);
     } finally {
@@ -243,9 +247,12 @@ export default function StudyAssistantScreen() {
       setCurrentStudyPlan(plan);
       setShowPlanModal(true);
       triggerHaptic('success');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Study plan error:', error);
-      Alert.alert('Error', 'Failed to generate study plan. Please check your API key.');
+      const errorMessage = error?.message?.includes('API Error')
+        ? 'Failed to generate study plan. Please add your free API key in Settings to enable this feature.'
+        : 'Failed to generate study plan. Please make sure you have a valid API key configured in Settings.';
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -263,9 +270,12 @@ export default function StudyAssistantScreen() {
       setQuizAnswers({});
       setShowQuizModal(true);
       triggerHaptic('success');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Quiz error:', error);
-      Alert.alert('Error', 'Failed to generate quiz. Please check your API key.');
+      const errorMessage = error?.message?.includes('API Error')
+        ? 'Failed to generate quiz. Please add your free API key in Settings to enable this feature.'
+        : 'Failed to generate quiz. Please make sure you have a valid API key configured in Settings.';
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -301,8 +311,8 @@ export default function StudyAssistantScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={90}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       {/* Document List View */}
       {showDocuments && (
@@ -438,41 +448,42 @@ export default function StudyAssistantScreen() {
             </View>
           </View>
 
-          {/* Quick Actions */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={[styles.quickActions, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}
-            contentContainerStyle={styles.quickActionsContent}
-          >
-            <AccessibleButton
-              title="Study Plan"
-              icon="event-note"
-              size="small"
-              variant="outline"
-              onPress={handleGenerateStudyPlan}
-              disabled={isLoading}
-            />
-            <AccessibleButton
-              title="Quiz Me"
-              icon="quiz"
-              size="small"
-              variant="outline"
-              onPress={handleGenerateQuiz}
-              disabled={isLoading}
-            />
-            <AccessibleButton
-              title="Summarize"
-              icon="summarize"
-              size="small"
-              variant="outline"
-              onPress={() => {
-                setInputText('Summarize this document in bullet points');
-                setTimeout(() => handleSendMessage(), 100);
-              }}
-              disabled={isLoading}
-            />
-          </ScrollView>
+          {/* Quick Actions - Fixed positioning to not cover chat */}
+          <View style={[styles.quickActions, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.quickActionsContent}
+            >
+              <AccessibleButton
+                title="Study Plan"
+                icon="event-note"
+                size="small"
+                variant="outline"
+                onPress={handleGenerateStudyPlan}
+                disabled={isLoading}
+              />
+              <AccessibleButton
+                title="Quiz Me"
+                icon="quiz"
+                size="small"
+                variant="outline"
+                onPress={handleGenerateQuiz}
+                disabled={isLoading}
+              />
+              <AccessibleButton
+                title="Summarize"
+                icon="summarize"
+                size="small"
+                variant="outline"
+                onPress={() => {
+                  setInputText('Summarize this document in bullet points');
+                  setTimeout(() => handleSendMessage(), 100);
+                }}
+                disabled={isLoading}
+              />
+            </ScrollView>
+          </View>
 
           {/* Messages */}
           <ScrollView
@@ -480,6 +491,7 @@ export default function StudyAssistantScreen() {
             style={styles.messagesContainer}
             contentContainerStyle={styles.messagesContent}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
             {chatMessages.map(message => (
               <View
@@ -564,7 +576,17 @@ export default function StudyAssistantScreen() {
         animationType="slide"
         onRequestClose={() => setShowApiKeyModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <TouchableOpacity
+          activeOpacity={1}
+          style={styles.modalOverlay}
+          onPress={() => setShowApiKeyModal(false)}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+            style={{ width: '100%' }}
+          >
+            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface, borderRadius: theme.borderRadius.xl }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>
@@ -655,7 +677,9 @@ export default function StudyAssistantScreen() {
               />
             </View>
           </View>
-        </View>
+            </TouchableOpacity>
+          </KeyboardAvoidingView>
+        </TouchableOpacity>
       </Modal>
 
       {/* Quiz Modal */}
@@ -940,7 +964,8 @@ const styles = StyleSheet.create({
   },
   quickActions: {
     borderBottomWidth: 1,
-    paddingVertical: 12,
+    paddingVertical: 8,
+    maxHeight: 60,
   },
   quickActionsContent: {
     paddingHorizontal: 16,

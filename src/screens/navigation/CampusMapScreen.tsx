@@ -63,6 +63,8 @@ export default function CampusMapScreen() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [showAccessibleOnly, setShowAccessibleOnly] = useState(false);
   const [showBuildingDetails, setShowBuildingDetails] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [is3DMode, setIs3DMode] = useState(false);
 
   const accessibilityMode = state.user?.preferences.accessibilityMode;
 
@@ -80,12 +82,39 @@ export default function CampusMapScreen() {
     })();
   }, []);
 
-  // Search handler
+  // Search handler - also search landmarks
   useEffect(() => {
     if (searchQuery.length > 0) {
       const buildings = searchBuildings(searchQuery);
       const rooms = searchRooms(searchQuery);
-      setSearchResults([...buildings, ...rooms].slice(0, 10));
+      
+      // Also search for landmarks using navigation service
+      (async () => {
+        try {
+          const { searchLocation } = await import('../../services/navigationService');
+          const landmarkCoord = await searchLocation(searchQuery);
+          if (landmarkCoord) {
+            // Add a virtual building for the landmark
+            const landmarkBuilding: Building = {
+              id: `landmark-${Date.now()}`,
+              name: searchQuery,
+              shortName: searchQuery.substring(0, 10),
+              description: `Landmark: ${searchQuery}`,
+              latitude: landmarkCoord.latitude,
+              longitude: landmarkCoord.longitude,
+              category: 'other',
+              accessibilityFeatures: [],
+              floors: [],
+            };
+            setSearchResults([...buildings, ...rooms, landmarkBuilding].slice(0, 10));
+          } else {
+            setSearchResults([...buildings, ...rooms].slice(0, 10));
+          }
+        } catch (error) {
+          console.error('Landmark search error:', error);
+          setSearchResults([...buildings, ...rooms].slice(0, 10));
+        }
+      })();
     } else {
       setSearchResults([]);
     }
@@ -112,26 +141,37 @@ export default function CampusMapScreen() {
 
     triggerHaptic('medium');
     setSelectedBuilding(building);
+    setIsLoading(true);
 
-    const route = await getRoute(
-      userLocation,
-      { latitude: building.latitude, longitude: building.longitude },
-      showAccessibleOnly
-    );
-
-    if (route) {
-      setActiveRoute(route);
-
-      // Fit map to show route
-      mapRef.current?.fitToCoordinates(
-        [userLocation, { latitude: building.latitude, longitude: building.longitude }],
-        { edgePadding: { top: 100, right: 50, bottom: 200, left: 50 }, animated: true }
+    try {
+      const route = await getRoute(
+        userLocation,
+        { latitude: building.latitude, longitude: building.longitude },
+        showAccessibleOnly
       );
 
-      // Voice announcement
-      if (accessibilityMode) {
-        speak(`Navigating to ${building.name}. Distance: ${formatDistance(route.distance)}. Estimated time: ${formatDuration(route.duration)}`);
+      if (route) {
+        setActiveRoute(route);
+        setIsNavigating(true);
+
+        // Fit map to show route
+        mapRef.current?.fitToCoordinates(
+          [userLocation, { latitude: building.latitude, longitude: building.longitude }],
+          { edgePadding: { top: 100, right: 50, bottom: 200, left: 50 }, animated: true }
+        );
+
+        // Voice announcement
+        if (accessibilityMode) {
+          speak(`Navigating to ${building.name}. Distance: ${formatDistance(route.distance)}. Estimated time: ${formatDuration(route.duration)}`);
+        }
+      } else {
+        Alert.alert('Route Error', 'Could not calculate route. Please try again.');
       }
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert('Navigation Error', 'Failed to get directions. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -336,6 +376,39 @@ export default function CampusMapScreen() {
           />
         </TouchableOpacity>
 
+        {/* Map Style Toggle Button (Satellite View) */}
+        <TouchableOpacity
+          style={[
+            styles.accessibleFilter,
+            {
+              backgroundColor: is3DMode ? theme.colors.primary : theme.colors.surface,
+              borderColor: theme.colors.primary,
+              borderRadius: theme.borderRadius.full,
+            },
+          ]}
+          onPress={() => {
+            const newMode = !is3DMode;
+            setIs3DMode(newMode);
+            triggerHaptic('light');
+
+            // Change map style
+            mapRef.current?.changeMapStyle(newMode ? 'satellite' : 'light');
+
+            if (accessibilityMode) {
+              speak(newMode ? 'Switched to satellite view' : 'Switched to map view');
+            }
+          }}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel={is3DMode ? 'Switch to map view' : 'Switch to satellite view'}
+        >
+          <MaterialIcons
+            name={is3DMode ? 'satellite' : 'satellite-alt'}
+            size={20}
+            color={is3DMode ? theme.colors.textInverse : theme.colors.primary}
+          />
+        </TouchableOpacity>
+
         {BUILDING_CATEGORIES.map(cat => (
           <TouchableOpacity
             key={cat.id}
@@ -425,48 +498,34 @@ export default function CampusMapScreen() {
             </View>
           )}
 
-          {/* Route Info */}
-          {activeRoute && (
-            <View style={[styles.routeInfo, { backgroundColor: theme.colors.surfaceVariant, borderRadius: theme.borderRadius.md }]}>
-              <View style={styles.routeInfoItem}>
-                <MaterialIcons name="straighten" size={20} color={theme.colors.primary} />
-                <Text style={[styles.routeInfoText, { color: theme.colors.textPrimary }]}>
-                  {formatDistance(activeRoute.distance)}
-                </Text>
-              </View>
-              <View style={styles.routeInfoItem}>
-                <MaterialIcons name="schedule" size={20} color={theme.colors.primary} />
-                <Text style={[styles.routeInfoText, { color: theme.colors.textPrimary }]}>
-                  {formatDuration(activeRoute.duration)}
-                </Text>
-              </View>
+          {/* Action Buttons */}
+          {!isNavigating && (
+            <View style={styles.actionButtons}>
+              <AccessibleButton
+                title="Get Directions"
+                icon="directions"
+                onPress={() => navigateToBuilding(selectedBuilding)}
+                accessibilityHint="Get walking directions to this building"
+              />
             </View>
           )}
 
-          {/* Action Buttons */}
-          <View style={styles.actionButtons}>
-            <AccessibleButton
-              title="Get Directions"
-              icon="directions"
-              onPress={() => navigateToBuilding(selectedBuilding)}
-              style={{ flex: 1 }}
-              accessibilityHint="Get walking directions to this building"
-            />
-            <AccessibleButton
-              title="Video Guide"
-              icon="play-circle-filled"
-              variant="outline"
-              onPress={() => playVideoRoute(selectedBuilding)}
-              style={{ flex: 1 }}
-              accessibilityHint="Watch a video showing the route"
-            />
-          </View>
-
+          {/* Turn-by-Turn Navigation Panel */}
           {isNavigating && activeRoute && (
             <View style={[styles.navigationPanel, { backgroundColor: `${theme.colors.primary}15`, borderRadius: theme.borderRadius.md }]}>
-              <Text style={[styles.navInstruction, { color: theme.colors.textPrimary }]}>
-                {activeRoute.steps[0]?.instruction}
-              </Text>
+              <View style={styles.navigationHeader}>
+                <MaterialIcons name="navigation" size={24} color={theme.colors.primary} />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={[styles.navInstruction, { color: theme.colors.textPrimary }]}>
+                    {activeRoute.steps[0]?.instruction || 'Start walking onto 4 Street'}
+                  </Text>
+                  <View style={styles.navInfo}>
+                    <Text style={[styles.navDistance, { color: theme.colors.textSecondary }]}>
+                      {formatDistance(activeRoute.distance)} • {formatDuration(activeRoute.duration)}
+                    </Text>
+                  </View>
+                </View>
+              </View>
               <AccessibleButton
                 title="Stop Navigation"
                 variant="danger"
@@ -474,6 +533,7 @@ export default function CampusMapScreen() {
                 onPress={() => {
                   setIsNavigating(false);
                   setActiveRoute(null);
+                  setShowBuildingDetails(false);
                 }}
               />
             </View>
@@ -704,10 +764,21 @@ const styles = StyleSheet.create({
     marginTop: 16,
     padding: 16,
   },
+  navigationHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
   navInstruction: {
     fontSize: 16,
-    marginBottom: 12,
+    fontWeight: '600',
     lineHeight: 22,
+  },
+  navInfo: {
+    marginTop: 4,
+  },
+  navDistance: {
+    fontSize: 13,
   },
   videoModal: {
     flex: 1,
