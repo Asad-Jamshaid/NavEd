@@ -336,27 +336,39 @@ async function callProvider(
 async function callGemini(prompt: string, systemPrompt: string): Promise<string | null> {
   if (!API_KEYS.gemini) return null;
 
-  const response = await fetch(
-    `${LLM_CONFIG.gemini.baseUrl}/models/${LLM_CONFIG.gemini.model}:generateContent?key=${API_KEYS.gemini}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt }],
+  try {
+    const response = await fetch(
+      `${LLM_CONFIG.gemini.baseUrl}/models/${LLM_CONFIG.gemini.model}:generateContent?key=${API_KEYS.gemini}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt }],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 1024,
           },
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 1024,
-        },
-      }),
-    }
-  );
+        }),
+      }
+    );
 
-  const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+    const data = await response.json();
+
+    // Check for API errors
+    if (data.error) {
+      console.error('Gemini API error:', data.error);
+      throw new Error(`API Error: ${data.error.message || 'Invalid API key or quota exceeded'}`);
+    }
+
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  } catch (error: any) {
+    console.error('Gemini call failed:', error);
+    throw error;
+  }
 }
 
 // Groq (FREE tier: Very generous limits)

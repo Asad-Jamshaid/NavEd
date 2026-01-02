@@ -35,6 +35,7 @@ export interface MapLibreMapRef {
   animateToRegion: (region: Region, duration?: number) => void;
   fitToCoordinates: (coordinates: Coordinate[], options?: any) => void;
   getCamera: () => Promise<any>;
+  changeMapStyle: (style: 'light' | 'dark' | 'satellite' | 'terrain') => void;
 }
 
 export interface MarkerProps {
@@ -158,21 +159,18 @@ const generateMapHTML = (
   <div id="map"></div>
   <script>
     var map = L.map('map', {
-      zoomControl: true,
+      zoomControl: false,
       attributionControl: true
     }).setView([${center.latitude}, ${center.longitude}], ${zoom});
 
-    // Use a more beautiful map style - CartoDB Positron (light) or Dark Matter (dark)
-    var isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    var tileUrl = isDark 
-      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-    
-    L.tileLayer(tileUrl, {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap © CARTO',
-      subdomains: 'abcd'
+    // Add zoom control at bottom right
+    L.control.zoom({
+      position: 'bottomright'
     }).addTo(map);
+
+    // Modern map styles - Stadia Maps (FREE tier available)
+    var tileUrl = 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png';
+    var attribution = '© <a href="https://stadiamaps.com/">Stadia Maps</a> © <a href="https://openmaptiles.org/">OpenMapTiles</a> © <a href="http://openstreetmap.org">OpenStreetMap</a>';
 
     // Add markers
     ${markersJS}
@@ -191,6 +189,9 @@ const generateMapHTML = (
       }));
     });
 
+    // Store tile layer reference for style switching
+    var currentTileLayer;
+
     // Functions callable from React Native
     window.flyTo = function(lat, lng, zoom) {
       map.flyTo([lat, lng], zoom || map.getZoom());
@@ -199,6 +200,49 @@ const generateMapHTML = (
     window.fitBounds = function(bounds) {
       map.fitBounds(bounds);
     };
+
+    // Change map style (for 3D/style toggle button)
+    window.changeMapStyle = function(style) {
+      if (currentTileLayer) {
+        map.removeLayer(currentTileLayer);
+      }
+
+      var tileUrl;
+      var attribution;
+
+      switch(style) {
+        case 'satellite':
+          tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+          attribution = '© Esri';
+          break;
+        case 'dark':
+          tileUrl = 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png';
+          attribution = '© Stadia Maps © OpenMapTiles © OpenStreetMap';
+          break;
+        case 'terrain':
+          tileUrl = 'https://tiles.stadiamaps.com/tiles/outdoors/{z}/{x}/{y}{r}.png';
+          attribution = '© Stadia Maps © OpenMapTiles © OpenStreetMap';
+          break;
+        default: // light
+          tileUrl = 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png';
+          attribution = '© Stadia Maps © OpenMapTiles © OpenStreetMap';
+      }
+
+      currentTileLayer = L.tileLayer(tileUrl, {
+        maxZoom: 20,
+        attribution: attribution,
+        tileSize: 512,
+        zoomOffset: -1
+      }).addTo(map);
+    };
+
+    // Initialize with default style
+    currentTileLayer = L.tileLayer(tileUrl, {
+      maxZoom: 20,
+      attribution: attribution,
+      tileSize: 512,
+      zoomOffset: -1
+    }).addTo(map);
   </script>
 </body>
 </html>
@@ -257,6 +301,12 @@ export const MapView = forwardRef<MapLibreMapRef, MapLibreMapProps>((props, ref)
     },
     getCamera: async () => {
       return null;
+    },
+    changeMapStyle: (style: 'light' | 'dark' | 'satellite' | 'terrain') => {
+      webViewRef.current?.injectJavaScript(`
+        window.changeMapStyle('${style}');
+        true;
+      `);
     },
   }));
 

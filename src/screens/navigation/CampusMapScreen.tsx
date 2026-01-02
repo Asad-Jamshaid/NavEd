@@ -376,7 +376,7 @@ export default function CampusMapScreen() {
           />
         </TouchableOpacity>
 
-        {/* 3D Toggle Button */}
+        {/* Map Style Toggle Button (Satellite View) */}
         <TouchableOpacity
           style={[
             styles.accessibleFilter,
@@ -387,18 +387,23 @@ export default function CampusMapScreen() {
             },
           ]}
           onPress={() => {
-            setIs3DMode(!is3DMode);
+            const newMode = !is3DMode;
+            setIs3DMode(newMode);
             triggerHaptic('light');
+
+            // Change map style
+            mapRef.current?.changeMapStyle(newMode ? 'satellite' : 'light');
+
             if (accessibilityMode) {
-              speak(is3DMode ? 'Switched to 2D view' : 'Switched to 3D view');
+              speak(newMode ? 'Switched to satellite view' : 'Switched to map view');
             }
           }}
           accessible={true}
           accessibilityRole="button"
-          accessibilityLabel={is3DMode ? 'Switch to 2D view' : 'Switch to 3D view'}
+          accessibilityLabel={is3DMode ? 'Switch to map view' : 'Switch to satellite view'}
         >
           <MaterialIcons
-            name={is3DMode ? 'view-in-ar' : 'view-in-ar'}
+            name={is3DMode ? 'satellite' : 'satellite-alt'}
             size={20}
             color={is3DMode ? theme.colors.textInverse : theme.colors.primary}
           />
@@ -493,48 +498,34 @@ export default function CampusMapScreen() {
             </View>
           )}
 
-          {/* Route Info */}
-          {activeRoute && (
-            <View style={[styles.routeInfo, { backgroundColor: theme.colors.surfaceVariant, borderRadius: theme.borderRadius.md }]}>
-              <View style={styles.routeInfoItem}>
-                <MaterialIcons name="straighten" size={20} color={theme.colors.primary} />
-                <Text style={[styles.routeInfoText, { color: theme.colors.textPrimary }]}>
-                  {formatDistance(activeRoute.distance)}
-                </Text>
-              </View>
-              <View style={styles.routeInfoItem}>
-                <MaterialIcons name="schedule" size={20} color={theme.colors.primary} />
-                <Text style={[styles.routeInfoText, { color: theme.colors.textPrimary }]}>
-                  {formatDuration(activeRoute.duration)}
-                </Text>
-              </View>
+          {/* Action Buttons */}
+          {!isNavigating && (
+            <View style={styles.actionButtons}>
+              <AccessibleButton
+                title="Get Directions"
+                icon="directions"
+                onPress={() => navigateToBuilding(selectedBuilding)}
+                accessibilityHint="Get walking directions to this building"
+              />
             </View>
           )}
 
-          {/* Action Buttons */}
-          <View style={styles.actionButtons}>
-            <AccessibleButton
-              title="Get Directions"
-              icon="directions"
-              onPress={() => navigateToBuilding(selectedBuilding)}
-              style={{ flex: 1 }}
-              accessibilityHint="Get walking directions to this building"
-            />
-            <AccessibleButton
-              title="Video Guide"
-              icon="play-circle-filled"
-              variant="outline"
-              onPress={() => playVideoRoute(selectedBuilding)}
-              style={{ flex: 1 }}
-              accessibilityHint="Watch a video showing the route"
-            />
-          </View>
-
+          {/* Turn-by-Turn Navigation Panel */}
           {isNavigating && activeRoute && (
             <View style={[styles.navigationPanel, { backgroundColor: `${theme.colors.primary}15`, borderRadius: theme.borderRadius.md }]}>
-              <Text style={[styles.navInstruction, { color: theme.colors.textPrimary }]}>
-                {activeRoute.steps[0]?.instruction}
-              </Text>
+              <View style={styles.navigationHeader}>
+                <MaterialIcons name="navigation" size={24} color={theme.colors.primary} />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={[styles.navInstruction, { color: theme.colors.textPrimary }]}>
+                    {activeRoute.steps[0]?.instruction || 'Start walking onto 4 Street'}
+                  </Text>
+                  <View style={styles.navInfo}>
+                    <Text style={[styles.navDistance, { color: theme.colors.textSecondary }]}>
+                      {formatDistance(activeRoute.distance)} • {formatDuration(activeRoute.duration)}
+                    </Text>
+                  </View>
+                </View>
+              </View>
               <AccessibleButton
                 title="Stop Navigation"
                 variant="danger"
@@ -542,6 +533,7 @@ export default function CampusMapScreen() {
                 onPress={() => {
                   setIsNavigating(false);
                   setActiveRoute(null);
+                  setShowBuildingDetails(false);
                 }}
               />
             </View>
@@ -772,10 +764,21 @@ const styles = StyleSheet.create({
     marginTop: 16,
     padding: 16,
   },
+  navigationHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
   navInstruction: {
     fontSize: 16,
-    marginBottom: 12,
+    fontWeight: '600',
     lineHeight: 22,
+  },
+  navInfo: {
+    marginTop: 4,
+  },
+  navDistance: {
+    fontSize: 13,
   },
   videoModal: {
     flex: 1,

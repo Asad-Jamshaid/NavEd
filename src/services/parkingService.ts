@@ -247,8 +247,43 @@ export async function setupParkingAlerts() {
         priority: Notifications.AndroidNotificationPriority.HIGH,
       }),
     });
+
+    // Start monitoring parking status (check every 5 minutes)
+    monitorParkingStatus();
   } catch (error) {
     console.log('Error setting up parking alerts:', error);
+  }
+}
+
+// Monitor parking status and send notifications when lots are filling up
+export async function monitorParkingStatus() {
+  const lots = await getParkingLots();
+
+  for (const lot of lots) {
+    const occupancy = ((lot.totalSpots - lot.availableSpots) / lot.totalSpots) * 100;
+
+    // Check if parking lot is getting full (>80% occupancy)
+    if (occupancy > 80 && occupancy < 95) {
+      // Send notification
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '⚠️ Parking Alert',
+          body: `${lot.name} is filling up! Only ${lot.availableSpots} spots remaining (${Math.round(100 - occupancy)}% available).`,
+          data: { lotId: lot.id, occupancy },
+        },
+        trigger: null, // Send immediately
+      });
+    } else if (occupancy >= 95) {
+      // Nearly full
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '🚗 Parking Almost Full',
+          body: `${lot.name} is almost full! Only ${lot.availableSpots} spots left. Consider alternative parking.`,
+          data: { lotId: lot.id, occupancy, urgent: true },
+        },
+        trigger: null,
+      });
+    }
   }
 }
 
