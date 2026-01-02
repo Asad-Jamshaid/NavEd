@@ -89,7 +89,7 @@ export async function reportParkingAvailability(
     const updatedList = [newUpdate, ...updates].slice(0, 100);
     await AsyncStorage.setItem(STORAGE_KEYS.PARKING_UPDATES, JSON.stringify(updatedList));
 
-    // Also save to history for prediction model
+    // Also save to history for prediction model - use availableSpots directly (not decreasing)
     await saveParkingHistory(parkingLotId, availableSpots);
 
     return true;

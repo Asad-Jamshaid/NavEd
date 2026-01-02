@@ -17,6 +17,7 @@ import {
   Platform,
   Linking,
   Animated,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -161,17 +162,17 @@ export default function ParkingScreen() {
     }
   }, [parkedVehicle, parkingLots, accessibilityMode]);
 
-  // Navigate to parking lot
+  // Navigate to parking lot - with accessible route option
   const handleNavigateToLot = useCallback(async (lot: ParkingLot) => {
     triggerHaptic('medium');
 
     if (accessibilityMode) {
-      speak(`Opening navigation to ${lot.name}`);
+      speak(`Opening navigation to ${lot.name}${lot.isAccessible ? ' using accessible route' : ''}`);
     }
 
     try {
       const { latitude, longitude } = lot;
-      const label = lot.name;
+      const label = lot.isAccessible ? `${lot.name} (Accessible)` : lot.name;
 
       let url: string;
       if (Platform.OS === 'ios') {
@@ -321,7 +322,11 @@ export default function ParkingScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
       {/* Header Actions */}
       <View style={[styles.headerActions, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
         <TouchableOpacity
@@ -594,7 +599,11 @@ export default function ParkingScreen() {
         animationType="slide"
         onRequestClose={() => setShowReportModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+        >
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface, borderRadius: theme.borderRadius.xl }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>
@@ -644,7 +653,7 @@ export default function ParkingScreen() {
               />
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Park Vehicle Modal */}
@@ -654,7 +663,11 @@ export default function ParkingScreen() {
         animationType="slide"
         onRequestClose={() => setShowParkModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+        >
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface, borderRadius: theme.borderRadius.xl }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>
@@ -722,9 +735,9 @@ export default function ParkingScreen() {
               />
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

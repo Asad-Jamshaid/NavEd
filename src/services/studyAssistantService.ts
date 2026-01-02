@@ -48,8 +48,11 @@ export async function loadApiKeys() {
     AsyncStorage.getItem('@naved_api_key_groq'),
     AsyncStorage.getItem('@naved_api_key_huggingface'),
   ]);
-  // Only override if a saved key exists (preserve default Gemini key)
-  if (gemini && gemini.length > 0) API_KEYS.gemini = gemini;
+  // Use saved keys if they exist, otherwise use default Gemini key
+  if (gemini && gemini.length > 0) {
+    API_KEYS.gemini = gemini;
+  }
+  // Always use the default Gemini key if no saved key exists
   if (groq && groq.length > 0) API_KEYS.groq = groq;
   if (huggingface && huggingface.length > 0) API_KEYS.huggingface = huggingface;
 }
@@ -508,19 +511,24 @@ Generate a JSON study plan with this structure:
     console.error('Error parsing study plan:', e);
   }
 
-  // Fallback plan
-  return {
-    id: `plan-${Date.now()}`,
-    documentId: '',
-    title: 'Study Plan',
-    objectives: ['Review document content', 'Practice key concepts'],
-    schedule: [
-      { id: 's1', topic: 'Initial Reading', duration: 25, completed: false },
-      { id: 's2', topic: 'Note Taking', duration: 25, completed: false },
-      { id: 's3', topic: 'Review & Practice', duration: 25, completed: false },
-    ],
-    createdAt: new Date(),
-  };
+  // Fallback plan - only if API fails
+  if (!API_KEYS.gemini && !API_KEYS.groq && !API_KEYS.huggingface) {
+    return {
+      id: `plan-${Date.now()}`,
+      documentId: '',
+      title: 'Study Plan',
+      objectives: ['Review document content', 'Practice key concepts'],
+      schedule: [
+        { id: 's1', topic: 'Initial Reading', duration: 25, completed: false },
+        { id: 's2', topic: 'Note Taking', duration: 25, completed: false },
+        { id: 's3', topic: 'Review & Practice', duration: 25, completed: false },
+      ],
+      createdAt: new Date(),
+    };
+  }
+  
+  // If API keys exist but parsing failed, return error
+  throw new Error('Failed to generate study plan. Please try again.');
 }
 
 // ==========================================
@@ -571,22 +579,27 @@ Generate ${numQuestions} questions in JSON format:
     console.error('Error parsing quiz:', e);
   }
 
-  // Fallback quiz
-  return {
-    id: `quiz-${Date.now()}`,
-    documentId: '',
-    title: 'Document Quiz',
-    questions: [
-      {
-        id: 'q1',
-        question: 'What is the main topic of this document?',
-        options: ['Option A', 'Option B', 'Option C', 'Option D'],
-        correctAnswer: 0,
-        explanation: 'Please configure an API key for auto-generated quizzes.',
-      },
-    ],
-    createdAt: new Date(),
-  };
+  // Fallback quiz - only if API fails
+  if (!API_KEYS.gemini && !API_KEYS.groq && !API_KEYS.huggingface) {
+    return {
+      id: `quiz-${Date.now()}`,
+      documentId: '',
+      title: 'Document Quiz',
+      questions: [
+        {
+          id: 'q1',
+          question: 'What is the main topic of this document?',
+          options: ['Option A', 'Option B', 'Option C', 'Option D'],
+          correctAnswer: 0,
+          explanation: 'Please configure an API key for auto-generated quizzes.',
+        },
+      ],
+      createdAt: new Date(),
+    };
+  }
+  
+  // If API keys exist but parsing failed, return error
+  throw new Error('Failed to generate quiz. Please try again.');
 }
 
 // ==========================================

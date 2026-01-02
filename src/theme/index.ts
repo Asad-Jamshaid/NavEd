@@ -91,16 +91,20 @@ export const darkColors = {
   full: '#F87171',
 };
 
-// High Contrast (Accessibility)
+// High Contrast (Accessibility) - Better colors for visibility
 export const highContrastColors = {
-  background: '#000000',
-  surface: '#000000',
-  surfaceVariant: '#1A1A1A',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#FFFFFF',
-  primary: '#FFFF00',
-  border: '#FFFFFF',
-  accent: '#00FFFF',
+  background: '#FFFFFF',
+  surface: '#FFFFFF',
+  surfaceVariant: '#F0F0F0',
+  textPrimary: '#000000',
+  textSecondary: '#333333',
+  primary: '#0066CC',
+  border: '#000000',
+  accent: '#0066CC',
+  success: '#008000',
+  warning: '#FF6600',
+  error: '#CC0000',
+  info: '#0066CC',
 };
 
 // ==========================================

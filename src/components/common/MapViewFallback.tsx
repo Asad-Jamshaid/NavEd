@@ -162,9 +162,16 @@ const generateMapHTML = (
       attributionControl: true
     }).setView([${center.latitude}, ${center.longitude}], ${zoom});
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // Use a more beautiful map style - CartoDB Positron (light) or Dark Matter (dark)
+    var isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var tileUrl = isDark 
+      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+    
+    L.tileLayer(tileUrl, {
       maxZoom: 19,
-      attribution: '© OpenStreetMap'
+      attribution: '© OpenStreetMap © CARTO',
+      subdomains: 'abcd'
     }).addTo(map);
 
     // Add markers

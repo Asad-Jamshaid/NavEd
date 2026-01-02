@@ -63,6 +63,8 @@ export default function CampusMapScreen() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [showAccessibleOnly, setShowAccessibleOnly] = useState(false);
   const [showBuildingDetails, setShowBuildingDetails] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [is3DMode, setIs3DMode] = useState(false);
 
   const accessibilityMode = state.user?.preferences.accessibilityMode;
 
@@ -80,12 +82,39 @@ export default function CampusMapScreen() {
     })();
   }, []);
 
-  // Search handler
+  // Search handler - also search landmarks
   useEffect(() => {
     if (searchQuery.length > 0) {
       const buildings = searchBuildings(searchQuery);
       const rooms = searchRooms(searchQuery);
-      setSearchResults([...buildings, ...rooms].slice(0, 10));
+      
+      // Also search for landmarks using navigation service
+      (async () => {
+        try {
+          const { searchLocation } = await import('../../services/navigationService');
+          const landmarkCoord = await searchLocation(searchQuery);
+          if (landmarkCoord) {
+            // Add a virtual building for the landmark
+            const landmarkBuilding: Building = {
+              id: `landmark-${Date.now()}`,
+              name: searchQuery,
+              shortName: searchQuery.substring(0, 10),
+              description: `Landmark: ${searchQuery}`,
+              latitude: landmarkCoord.latitude,
+              longitude: landmarkCoord.longitude,
+              category: 'other',
+              accessibilityFeatures: [],
+              floors: [],
+            };
+            setSearchResults([...buildings, ...rooms, landmarkBuilding].slice(0, 10));
+          } else {
+            setSearchResults([...buildings, ...rooms].slice(0, 10));
+          }
+        } catch (error) {
+          console.error('Landmark search error:', error);
+          setSearchResults([...buildings, ...rooms].slice(0, 10));
+        }
+      })();
     } else {
       setSearchResults([]);
     }
@@ -112,26 +141,37 @@ export default function CampusMapScreen() {
 
     triggerHaptic('medium');
     setSelectedBuilding(building);
+    setIsLoading(true);
 
-    const route = await getRoute(
-      userLocation,
-      { latitude: building.latitude, longitude: building.longitude },
-      showAccessibleOnly
-    );
-
-    if (route) {
-      setActiveRoute(route);
-
-      // Fit map to show route
-      mapRef.current?.fitToCoordinates(
-        [userLocation, { latitude: building.latitude, longitude: building.longitude }],
-        { edgePadding: { top: 100, right: 50, bottom: 200, left: 50 }, animated: true }
+    try {
+      const route = await getRoute(
+        userLocation,
+        { latitude: building.latitude, longitude: building.longitude },
+        showAccessibleOnly
       );
 
-      // Voice announcement
-      if (accessibilityMode) {
-        speak(`Navigating to ${building.name}. Distance: ${formatDistance(route.distance)}. Estimated time: ${formatDuration(route.duration)}`);
+      if (route) {
+        setActiveRoute(route);
+        setIsNavigating(true);
+
+        // Fit map to show route
+        mapRef.current?.fitToCoordinates(
+          [userLocation, { latitude: building.latitude, longitude: building.longitude }],
+          { edgePadding: { top: 100, right: 50, bottom: 200, left: 50 }, animated: true }
+        );
+
+        // Voice announcement
+        if (accessibilityMode) {
+          speak(`Navigating to ${building.name}. Distance: ${formatDistance(route.distance)}. Estimated time: ${formatDuration(route.duration)}`);
+        }
+      } else {
+        Alert.alert('Route Error', 'Could not calculate route. Please try again.');
       }
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert('Navigation Error', 'Failed to get directions. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -333,6 +373,34 @@ export default function CampusMapScreen() {
             name="accessible"
             size={20}
             color={showAccessibleOnly ? theme.colors.textInverse : theme.colors.primary}
+          />
+        </TouchableOpacity>
+
+        {/* 3D Toggle Button */}
+        <TouchableOpacity
+          style={[
+            styles.accessibleFilter,
+            {
+              backgroundColor: is3DMode ? theme.colors.primary : theme.colors.surface,
+              borderColor: theme.colors.primary,
+              borderRadius: theme.borderRadius.full,
+            },
+          ]}
+          onPress={() => {
+            setIs3DMode(!is3DMode);
+            triggerHaptic('light');
+            if (accessibilityMode) {
+              speak(is3DMode ? 'Switched to 2D view' : 'Switched to 3D view');
+            }
+          }}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel={is3DMode ? 'Switch to 2D view' : 'Switch to 3D view'}
+        >
+          <MaterialIcons
+            name={is3DMode ? 'view-in-ar' : 'view-in-ar'}
+            size={20}
+            color={is3DMode ? theme.colors.textInverse : theme.colors.primary}
           />
         </TouchableOpacity>
 

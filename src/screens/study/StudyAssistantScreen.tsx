@@ -438,41 +438,42 @@ export default function StudyAssistantScreen() {
             </View>
           </View>
 
-          {/* Quick Actions */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={[styles.quickActions, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}
-            contentContainerStyle={styles.quickActionsContent}
-          >
-            <AccessibleButton
-              title="Study Plan"
-              icon="event-note"
-              size="small"
-              variant="outline"
-              onPress={handleGenerateStudyPlan}
-              disabled={isLoading}
-            />
-            <AccessibleButton
-              title="Quiz Me"
-              icon="quiz"
-              size="small"
-              variant="outline"
-              onPress={handleGenerateQuiz}
-              disabled={isLoading}
-            />
-            <AccessibleButton
-              title="Summarize"
-              icon="summarize"
-              size="small"
-              variant="outline"
-              onPress={() => {
-                setInputText('Summarize this document in bullet points');
-                setTimeout(() => handleSendMessage(), 100);
-              }}
-              disabled={isLoading}
-            />
-          </ScrollView>
+          {/* Quick Actions - Fixed positioning to not cover chat */}
+          <View style={[styles.quickActions, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.quickActionsContent}
+            >
+              <AccessibleButton
+                title="Study Plan"
+                icon="event-note"
+                size="small"
+                variant="outline"
+                onPress={handleGenerateStudyPlan}
+                disabled={isLoading}
+              />
+              <AccessibleButton
+                title="Quiz Me"
+                icon="quiz"
+                size="small"
+                variant="outline"
+                onPress={handleGenerateQuiz}
+                disabled={isLoading}
+              />
+              <AccessibleButton
+                title="Summarize"
+                icon="summarize"
+                size="small"
+                variant="outline"
+                onPress={() => {
+                  setInputText('Summarize this document in bullet points');
+                  setTimeout(() => handleSendMessage(), 100);
+                }}
+                disabled={isLoading}
+              />
+            </ScrollView>
+          </View>
 
           {/* Messages */}
           <ScrollView
@@ -480,6 +481,7 @@ export default function StudyAssistantScreen() {
             style={styles.messagesContainer}
             contentContainerStyle={styles.messagesContent}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
             {chatMessages.map(message => (
               <View
@@ -940,7 +942,8 @@ const styles = StyleSheet.create({
   },
   quickActions: {
     borderBottomWidth: 1,
-    paddingVertical: 12,
+    paddingVertical: 8,
+    maxHeight: 60,
   },
   quickActionsContent: {
     paddingHorizontal: 16,
