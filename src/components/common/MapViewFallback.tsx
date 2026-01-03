@@ -29,6 +29,10 @@ export interface MapLibreMapProps {
   children?: React.ReactNode;
   accessible?: boolean;
   accessibilityLabel?: string;
+  // 3D View Props (for MapLibre compatibility)
+  enable3D?: boolean;
+  initialPitch?: number;
+  initialBearing?: number;
 }
 
 export interface MapLibreMapRef {
@@ -36,6 +40,11 @@ export interface MapLibreMapRef {
   fitToCoordinates: (coordinates: Coordinate[], options?: any) => void;
   getCamera: () => Promise<any>;
   changeMapStyle: (style: 'light' | 'dark' | 'satellite' | 'terrain') => void;
+  // 3D Camera Controls (for MapLibre compatibility)
+  setPitch: (pitch: number, duration?: number) => void;
+  setBearing: (bearing: number, duration?: number) => void;
+  set3DView: (enabled: boolean, duration?: number) => void;
+  resetOrientation: (duration?: number) => void;
 }
 
 export interface MarkerProps {
@@ -308,6 +317,11 @@ export const MapView = forwardRef<MapLibreMapRef, MapLibreMapProps>((props, ref)
         true;
       `);
     },
+    // 3D methods (no-op for Leaflet fallback - 3D not supported)
+    setPitch: () => {},
+    setBearing: () => {},
+    set3DView: () => {},
+    resetOrientation: () => {},
   }));
 
   const handleMessage = (event: any) => {

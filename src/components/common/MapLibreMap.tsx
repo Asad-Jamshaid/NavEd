@@ -42,12 +42,21 @@ export interface MapLibreMapProps {
   children?: React.ReactNode;
   accessible?: boolean;
   accessibilityLabel?: string;
+  // 3D View Props
+  enable3D?: boolean;
+  initialPitch?: number;
+  initialBearing?: number;
 }
 
 export interface MapLibreMapRef {
   animateToRegion: (region: Region, duration?: number) => void;
   fitToCoordinates: (coordinates: Coordinate[], options?: any) => void;
   getCamera: () => Promise<any>;
+  // 3D Camera Controls
+  setPitch: (pitch: number, duration?: number) => void;
+  setBearing: (bearing: number, duration?: number) => void;
+  set3DView: (enabled: boolean, duration?: number) => void;
+  resetOrientation: (duration?: number) => void;
 }
 
 // Main MapView Component
@@ -60,6 +69,10 @@ export const MapView = forwardRef<MapLibreMapRef, MapLibreMapProps>((props, ref)
     children,
     accessible,
     accessibilityLabel,
+    // 3D Props with defaults
+    enable3D = false,
+    initialPitch = 55,
+    initialBearing = -15,
   } = props;
 
   const { theme } = useTheme();
@@ -99,14 +112,46 @@ export const MapView = forwardRef<MapLibreMapRef, MapLibreMapProps>((props, ref)
     getCamera: async () => {
       return cameraRef.current;
     },
+    // 3D Camera Controls
+    setPitch: (pitch: number, duration = 500) => {
+      cameraRef.current?.setCamera({
+        pitch,
+        animationDuration: duration,
+      });
+    },
+    setBearing: (bearing: number, duration = 500) => {
+      cameraRef.current?.setCamera({
+        heading: bearing,
+        animationDuration: duration,
+      });
+    },
+    set3DView: (enabled: boolean, duration = 800) => {
+      cameraRef.current?.setCamera({
+        pitch: enabled ? initialPitch : 0,
+        heading: enabled ? initialBearing : 0,
+        zoomLevel: enabled ? 17 : 16,
+        animationDuration: duration,
+      });
+    },
+    resetOrientation: (duration = 500) => {
+      cameraRef.current?.setCamera({
+        pitch: 0,
+        heading: 0,
+        animationDuration: duration,
+      });
+    },
   }));
 
   const defaultCamera = initialRegion ? {
     centerCoordinate: [initialRegion.longitude, initialRegion.latitude] as [number, number],
-    zoomLevel: Math.log2(360 / initialRegion.latitudeDelta) - 1,
+    zoomLevel: enable3D ? 17 : Math.log2(360 / initialRegion.latitudeDelta) - 1,
+    pitch: enable3D ? initialPitch : 0,
+    heading: enable3D ? initialBearing : 0,
   } : {
     centerCoordinate: [74.3587, 31.5204] as [number, number], // Default: Lahore
-    zoomLevel: 15,
+    zoomLevel: enable3D ? 17 : 15,
+    pitch: enable3D ? initialPitch : 0,
+    heading: enable3D ? initialBearing : 0,
   };
 
   return (
@@ -124,6 +169,9 @@ export const MapView = forwardRef<MapLibreMapRef, MapLibreMapProps>((props, ref)
         logoEnabled={false}
         attributionEnabled={true}
         attributionPosition={{ bottom: 8, right: 8 }}
+        // 3D Controls
+        pitchEnabled={true}
+        rotateEnabled={true}
       >
         <MapLibreGL.Camera
           ref={cameraRef}

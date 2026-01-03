@@ -321,15 +321,10 @@ export default function StudyAssistantScreen() {
             <Text style={[styles.headerTitle, { color: theme.colors.textPrimary }]}>
               Study Assistant
             </Text>
-            <TouchableOpacity
-              onPress={() => setShowApiKeyModal(true)}
-              style={styles.settingsButton}
-              accessible={true}
-              accessibilityRole="button"
-              accessibilityLabel="API Settings"
-            >
-              <MaterialIcons name="settings" size={24} color={theme.colors.textSecondary} />
-            </TouchableOpacity>
+            <View style={[styles.aiBadge, { backgroundColor: `${theme.colors.success}15` }]}>
+              <MaterialIcons name="auto-awesome" size={16} color={theme.colors.success} />
+              <Text style={[styles.aiBadgeText, { color: theme.colors.success }]}>AI Enabled</Text>
+            </View>
           </View>
 
           <ScrollView style={styles.documentsList} showsVerticalScrollIndicator={false}>
@@ -403,22 +398,22 @@ export default function StudyAssistantScreen() {
               </>
             )}
 
-            {/* Free API Info */}
-            <SimpleCard variant="flat" style={StyleSheet.flatten([styles.infoCard, { backgroundColor: `${theme.colors.info}10` }])}>
+            {/* AI Features Info */}
+            <SimpleCard variant="flat" style={StyleSheet.flatten([styles.infoCard, { backgroundColor: `${theme.colors.success}10` }])}>
               <View style={styles.infoContent}>
-                <View style={[styles.infoIcon, { backgroundColor: `${theme.colors.info}15` }]}>
-                  <MaterialIcons name="info-outline" size={24} color={theme.colors.info} />
+                <View style={[styles.infoIcon, { backgroundColor: `${theme.colors.success}15` }]}>
+                  <MaterialIcons name="auto-awesome" size={24} color={theme.colors.success} />
                 </View>
                 <View style={styles.infoText}>
                   <Text style={[styles.infoTitle, { color: theme.colors.textPrimary }]}>
-                    Free AI Features
+                    AI-Powered Learning
                   </Text>
                   <Text style={[styles.infoDesc, { color: theme.colors.textSecondary }]}>
-                    Get a FREE API key from:{'\n'}
-                    • Google AI Studio (Gemini){'\n'}
-                    • Groq Console{'\n'}
-                    • HuggingFace{'\n'}
-                    Then add it in settings to unlock all features!
+                    Upload any document to unlock:{'\n'}
+                    • Chat with AI about your content{'\n'}
+                    • Auto-generate quizzes{'\n'}
+                    • Create personalized study plans{'\n'}
+                    Powered by Google Gemini AI
                   </Text>
                 </View>
               </View>
@@ -871,8 +866,17 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
   },
-  settingsButton: {
-    padding: 8,
+  aiBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 4,
+  },
+  aiBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   documentsList: {
     flex: 1,

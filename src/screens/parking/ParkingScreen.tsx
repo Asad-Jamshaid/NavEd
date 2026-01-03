@@ -18,6 +18,8 @@ import {
   Linking,
   Animated,
   KeyboardAvoidingView,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -234,6 +236,14 @@ export default function ParkingScreen() {
     await saveVehicleLocation(vehicle);
     setParkedVehicle(vehicle);
     saveParkedVehicle(vehicle);
+
+    // Decrease available spots when parking
+    const newAvailableSpots = Math.max(0, selectedLot.availableSpots - 1);
+    await reportParkingAvailability(selectedLot.id, newAvailableSpots);
+
+    // Refresh data to show updated count
+    loadData();
+
     setShowParkModal(false);
     setSpotNumber('');
     setNotes('');
@@ -255,10 +265,22 @@ export default function ParkingScreen() {
           text: 'Clear',
           style: 'destructive',
           onPress: async () => {
+            // Increase available spots when leaving (if we know the lot)
+            if (parkedVehicle?.parkingLotId) {
+              const lot = parkingLots.find(l => l.id === parkedVehicle.parkingLotId);
+              if (lot) {
+                const newAvailableSpots = Math.min(lot.totalSpots, lot.availableSpots + 1);
+                await reportParkingAvailability(lot.id, newAvailableSpots);
+              }
+            }
+
             await clearVehicleLocation();
             setParkedVehicle(null);
             saveParkedVehicle(null);
             triggerHaptic('medium');
+
+            // Refresh data to show updated count
+            loadData();
           },
         },
       ]
@@ -602,69 +624,64 @@ export default function ParkingScreen() {
         animationType="slide"
         onRequestClose={() => setShowReportModal(false)}
       >
-        <TouchableOpacity
-          activeOpacity={1}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}
-          onPress={() => setShowReportModal(false)}
         >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-            style={{ width: '100%' }}
-          >
-            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface, borderRadius: theme.borderRadius.xl }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>
-                Report Availability
-              </Text>
-              <TouchableOpacity onPress={() => setShowReportModal(false)}>
-                <MaterialIcons name="close" size={24} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalOverlay}>
+              <View style={[styles.modalContent, { backgroundColor: theme.colors.surface, borderRadius: theme.borderRadius.xl }]}>
+                <View style={styles.modalHeader}>
+                  <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>
+                    Report Availability
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowReportModal(false)}>
+                    <MaterialIcons name="close" size={24} color={theme.colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
+                  How many spots are available at {selectedLot?.name}?
+                </Text>
+
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: theme.colors.surfaceVariant,
+                      borderColor: theme.colors.border,
+                      color: theme.colors.textPrimary,
+                      borderRadius: theme.borderRadius.md,
+                    },
+                  ]}
+                  placeholder="Number of available spots"
+                  placeholderTextColor={theme.colors.textTertiary}
+                  keyboardType="number-pad"
+                  value={reportSpots}
+                  onChangeText={setReportSpots}
+                />
+
+                <View style={styles.modalActions}>
+                  <AccessibleButton
+                    title="Cancel"
+                    variant="ghost"
+                    onPress={() => {
+                      setShowReportModal(false);
+                      setReportSpots('');
+                    }}
+                    style={{ flex: 1 }}
+                  />
+                  <AccessibleButton
+                    title="Submit Report"
+                    icon="check"
+                    onPress={handleReport}
+                    style={{ flex: 1 }}
+                  />
+                </View>
+              </View>
             </View>
-
-            <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
-              How many spots are available at {selectedLot?.name}?
-            </Text>
-
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: theme.colors.surfaceVariant,
-                  borderColor: theme.colors.border,
-                  color: theme.colors.textPrimary,
-                  borderRadius: theme.borderRadius.md,
-                },
-              ]}
-              placeholder="Number of available spots"
-              placeholderTextColor={theme.colors.textTertiary}
-              keyboardType="number-pad"
-              value={reportSpots}
-              onChangeText={setReportSpots}
-            />
-
-            <View style={styles.modalActions}>
-              <AccessibleButton
-                title="Cancel"
-                variant="ghost"
-                onPress={() => {
-                  setShowReportModal(false);
-                  setReportSpots('');
-                }}
-                style={{ flex: 1 }}
-              />
-              <AccessibleButton
-                title="Submit Report"
-                icon="check"
-                onPress={handleReport}
-                style={{ flex: 1 }}
-              />
-            </View>
-          </View>
-            </TouchableOpacity>
-          </KeyboardAvoidingView>
-        </TouchableOpacity>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Park Vehicle Modal */}
@@ -674,87 +691,82 @@ export default function ParkingScreen() {
         animationType="slide"
         onRequestClose={() => setShowParkModal(false)}
       >
-        <TouchableOpacity
-          activeOpacity={1}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}
-          onPress={() => setShowParkModal(false)}
         >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-            style={{ width: '100%' }}
-          >
-            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface, borderRadius: theme.borderRadius.xl }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>
-                Save Vehicle Location
-              </Text>
-              <TouchableOpacity onPress={() => setShowParkModal(false)}>
-                <MaterialIcons name="close" size={24} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalOverlay}>
+              <View style={[styles.modalContent, { backgroundColor: theme.colors.surface, borderRadius: theme.borderRadius.xl }]}>
+                <View style={styles.modalHeader}>
+                  <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>
+                    Save Vehicle Location
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowParkModal(false)}>
+                    <MaterialIcons name="close" size={24} color={theme.colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
+                  Remember where you parked at {selectedLot?.name}
+                </Text>
+
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: theme.colors.surfaceVariant,
+                      borderColor: theme.colors.border,
+                      color: theme.colors.textPrimary,
+                      borderRadius: theme.borderRadius.md,
+                    },
+                  ]}
+                  placeholder="Spot number (optional)"
+                  placeholderTextColor={theme.colors.textTertiary}
+                  value={spotNumber}
+                  onChangeText={setSpotNumber}
+                />
+
+                <TextInput
+                  style={[
+                    styles.input,
+                    styles.notesInput,
+                    {
+                      backgroundColor: theme.colors.surfaceVariant,
+                      borderColor: theme.colors.border,
+                      color: theme.colors.textPrimary,
+                      borderRadius: theme.borderRadius.md,
+                    },
+                  ]}
+                  placeholder="Notes (e.g., near exit, level 2)"
+                  placeholderTextColor={theme.colors.textTertiary}
+                  value={notes}
+                  onChangeText={setNotes}
+                  multiline
+                />
+
+                <View style={styles.modalActions}>
+                  <AccessibleButton
+                    title="Cancel"
+                    variant="ghost"
+                    onPress={() => {
+                      setShowParkModal(false);
+                      setSpotNumber('');
+                      setNotes('');
+                    }}
+                    style={{ flex: 1 }}
+                  />
+                  <AccessibleButton
+                    title="Save Location"
+                    icon="save"
+                    onPress={handleParkVehicle}
+                    style={{ flex: 1 }}
+                  />
+                </View>
+              </View>
             </View>
-
-            <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
-              Remember where you parked at {selectedLot?.name}
-            </Text>
-
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: theme.colors.surfaceVariant,
-                  borderColor: theme.colors.border,
-                  color: theme.colors.textPrimary,
-                  borderRadius: theme.borderRadius.md,
-                },
-              ]}
-              placeholder="Spot number (optional)"
-              placeholderTextColor={theme.colors.textTertiary}
-              value={spotNumber}
-              onChangeText={setSpotNumber}
-            />
-
-            <TextInput
-              style={[
-                styles.input,
-                styles.notesInput,
-                {
-                  backgroundColor: theme.colors.surfaceVariant,
-                  borderColor: theme.colors.border,
-                  color: theme.colors.textPrimary,
-                  borderRadius: theme.borderRadius.md,
-                },
-              ]}
-              placeholder="Notes (e.g., near exit, level 2)"
-              placeholderTextColor={theme.colors.textTertiary}
-              value={notes}
-              onChangeText={setNotes}
-              multiline
-            />
-
-            <View style={styles.modalActions}>
-              <AccessibleButton
-                title="Cancel"
-                variant="ghost"
-                onPress={() => {
-                  setShowParkModal(false);
-                  setSpotNumber('');
-                  setNotes('');
-                }}
-                style={{ flex: 1 }}
-              />
-              <AccessibleButton
-                title="Save Location"
-                icon="save"
-                onPress={handleParkVehicle}
-                style={{ flex: 1 }}
-              />
-            </View>
-          </View>
-            </TouchableOpacity>
-          </KeyboardAvoidingView>
-        </TouchableOpacity>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
     </KeyboardAvoidingView>
   );

@@ -32,7 +32,7 @@ const STORAGE_KEYS = {
 // Store these securely - users should add their own FREE keys
 // ==========================================
 let API_KEYS = {
-  gemini: 'AIzaSyDGxVw7NQAjM3ZIi1Pc4V6_UidRIEagczw', // Google Gemini API Key
+  gemini: 'AIzaSyDExMxcHCMxYwzD5I-RFNMJVG15lNKymMU', // Google Gemini API Key
   groq: '', // Get free at: https://console.groq.com/keys
   huggingface: '', // Get free at: https://huggingface.co/settings/tokens
 };

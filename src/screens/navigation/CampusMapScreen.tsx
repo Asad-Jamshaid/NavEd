@@ -13,6 +13,7 @@ import {
   Modal,
   Alert,
   Platform,
+  Animated,
 } from 'react-native';
 import MapView, { Marker, Polyline, MapLibreMapRef } from '../../components/common/MapViewFallback';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -22,6 +23,7 @@ import { Video, ResizeMode } from 'expo-av';
 import SearchBar from '../../components/common/SearchBar';
 import AccessibleButton from '../../components/common/AccessibleButton';
 import Card, { SimpleCard } from '../../components/common/Card';
+import Building3DLayer from '../../components/common/Building3DLayer';
 import { useTheme } from '../../contexts/ThemeContext';
 import { CAMPUS_CONFIG, BUILDING_CATEGORIES } from '../../utils/constants';
 import { Building, Coordinate, NavigationRoute, Room } from '../../types';
@@ -63,8 +65,8 @@ export default function CampusMapScreen() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [showAccessibleOnly, setShowAccessibleOnly] = useState(false);
   const [showBuildingDetails, setShowBuildingDetails] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [is3DMode, setIs3DMode] = useState(false);
+  // 3D Mode State - enabled by default
+  const [is3DMode, setIs3DMode] = useState(true);
 
   const accessibilityMode = state.user?.preferences.accessibilityMode;
 
@@ -245,14 +247,32 @@ export default function CampusMapScreen() {
         style={styles.map}
         initialRegion={{
           ...CAMPUS_CONFIG.center,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
+          latitudeDelta: 0.008,
+          longitudeDelta: 0.008,
         }}
         showsUserLocation={true}
         accessible={true}
         accessibilityLabel="Campus map"
+        // 3D Mode Props
+        enable3D={is3DMode}
+        initialPitch={55}
+        initialBearing={-15}
       >
-        {/* Building Markers */}
+        {/* 3D Building Extrusions */}
+        <Building3DLayer
+          selectedBuildingId={selectedBuilding?.id}
+          visible={is3DMode}
+          onBuildingPress={(buildingId) => {
+            const building = BUILDINGS.find(b => b.id === buildingId);
+            if (building) {
+              setSelectedBuilding(building);
+              setShowBuildingDetails(true);
+              triggerHaptic('light');
+            }
+          }}
+        />
+
+        {/* Building Markers (show in 2D mode or as labels) */}
         {filteredBuildings.map(building => (
           <Marker
             key={building.id}
@@ -295,6 +315,60 @@ export default function CampusMapScreen() {
           />
         )}
       </MapView>
+
+      {/* Map Controls (Right Side) */}
+      <View style={styles.mapControls}>
+        {/* Reset Orientation Button */}
+        <TouchableOpacity
+          style={[
+            styles.mapControlButton,
+            {
+              backgroundColor: theme.colors.surface,
+              borderRadius: theme.borderRadius.md,
+              ...theme.shadows.sm,
+            },
+          ]}
+          onPress={() => {
+            mapRef.current?.resetOrientation();
+            triggerHaptic('light');
+          }}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Reset map orientation to north"
+        >
+          <MaterialIcons name="explore" size={22} color={theme.colors.primary} />
+        </TouchableOpacity>
+
+        {/* Recenter on Campus */}
+        <TouchableOpacity
+          style={[
+            styles.mapControlButton,
+            {
+              backgroundColor: theme.colors.surface,
+              borderRadius: theme.borderRadius.md,
+              ...theme.shadows.sm,
+            },
+          ]}
+          onPress={() => {
+            mapRef.current?.animateToRegion({
+              ...CAMPUS_CONFIG.center,
+              latitudeDelta: 0.008,
+              longitudeDelta: 0.008,
+            });
+            if (is3DMode) {
+              setTimeout(() => {
+                mapRef.current?.set3DView(true);
+              }, 300);
+            }
+            triggerHaptic('light');
+          }}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Center map on campus"
+        >
+          <MaterialIcons name="my-location" size={22} color={theme.colors.primary} />
+        </TouchableOpacity>
+      </View>
 
       {/* Search Bar */}
       <View style={[styles.searchContainer, { top: Platform.OS === 'ios' ? 60 : 40 }]}>
@@ -351,6 +425,44 @@ export default function CampusMapScreen() {
         style={[styles.categoryScroll, { top: Platform.OS === 'ios' ? 120 : 100 }]}
         contentContainerStyle={styles.categoryContent}
       >
+        {/* 3D Toggle Button */}
+        <TouchableOpacity
+          style={[
+            styles.toggle3DButton,
+            {
+              backgroundColor: is3DMode ? theme.colors.primary : theme.colors.surface,
+              borderColor: theme.colors.primary,
+              borderRadius: theme.borderRadius.md,
+              ...theme.shadows.sm,
+            },
+          ]}
+          onPress={() => {
+            setIs3DMode(!is3DMode);
+            mapRef.current?.set3DView(!is3DMode);
+            triggerHaptic('medium');
+            if (accessibilityMode) {
+              speak(is3DMode ? 'Switched to 2D view' : 'Switched to 3D view');
+            }
+          }}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityState={{ selected: is3DMode }}
+          accessibilityLabel={is3DMode ? 'Switch to 2D view' : 'Switch to 3D view'}
+        >
+          <MaterialIcons
+            name={is3DMode ? 'view-in-ar' : 'map'}
+            size={18}
+            color={is3DMode ? theme.colors.textInverse : theme.colors.primary}
+          />
+          <Text style={[
+            styles.toggle3DText,
+            { color: is3DMode ? theme.colors.textInverse : theme.colors.primary },
+          ]}>
+            {is3DMode ? '3D' : '2D'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Accessible Buildings Filter */}
         <TouchableOpacity
           style={[
             styles.accessibleFilter,
@@ -632,6 +744,19 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
+  mapControls: {
+    position: 'absolute',
+    right: 16,
+    top: Platform.OS === 'ios' ? 180 : 160,
+    gap: 8,
+    zIndex: 5,
+  },
+  mapControlButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   searchContainer: {
     position: 'absolute',
     left: 16,
@@ -667,6 +792,19 @@ const styles = StyleSheet.create({
   },
   categoryContent: {
     paddingHorizontal: 16,
+  },
+  toggle3DButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 8,
+    borderWidth: 2,
+    gap: 4,
+  },
+  toggle3DText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   accessibleFilter: {
     width: 40,

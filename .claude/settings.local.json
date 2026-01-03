@@ -30,7 +30,13 @@
       "Bash(npm run lint)",
       "Bash(wc:*)",
       "Bash(grep:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(npx expo-doctor)",
+      "Bash(dir:*)",
+      "Bash(node scripts/generatePresentationDoc.js:*)",
+      "Bash(copy /Y \"c:\\\\Users\\\\LENOVO\\\\Documents\\\\GitHub\\\\NavEd\\\\assets\\\\icon.png\" \"c:\\\\Users\\\\LENOVO\\\\Documents\\\\GitHub\\\\NavEd\\\\assets\\\\favicon.png\")",
+      "Bash(copy /Y \"c:\\\\Users\\\\LENOVO\\\\Documents\\\\GitHub\\\\NavEd\\\\assets\\\\icon.png\" \"c:\\\\Users\\\\LENOVO\\\\Documents\\\\GitHub\\\\NavEd\\\\assets\\\\splash.png\")",
+      "Bash(node scripts/resizeIcons.js:*)"
     ]
   }
 }

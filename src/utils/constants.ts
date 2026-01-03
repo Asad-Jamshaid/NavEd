@@ -34,9 +34,9 @@ export const COLORS = {
   info: '#2196F3',
 
   // Accessibility High Contrast
-  highContrastBg: '#000000',
-  highContrastText: '#FFFFFF',
-  highContrastAccent: '#FFFF00',
+  highContrastBg: '#1A1A2E',      // Dark navy instead of pure black
+  highContrastText: '#F5F5F5',    // Off-white instead of pure white
+  highContrastAccent: '#FFA500',  // Orange instead of harsh yellow
 
   // Parking Status Colors
   parkingAvailable: '#4CAF50',
@@ -125,7 +125,7 @@ export const LLM_CONFIG = {
   // Google Gemini - FREE tier available (Dec 2025)
   gemini: {
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
-    model: 'gemini-3-flash', // Latest Gemini 3 Flash model
+    model: 'gemini-2.5-flash', // Gemini 2.5 Flash - fast and free
     // API key should be stored securely - this is just for reference
   },
   // HuggingFace - FREE inference API
