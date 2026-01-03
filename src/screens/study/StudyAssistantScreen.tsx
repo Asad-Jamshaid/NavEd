@@ -218,9 +218,7 @@ export default function StudyAssistantScreen() {
       }
     } catch (error: any) {
       console.error('Chat error:', error);
-      const errorMessage = error?.message?.includes('API Error')
-        ? 'Document summarization requires an LLM API. Please add your free API key in Settings to enable this feature.'
-        : 'Sorry, I encountered an error. Please make sure you have a valid API key configured in Settings.';
+      const errorMessage = 'Sorry, I encountered an error processing your request. Please try again or rephrase your question.';
 
       setChatMessages(prev => [...prev, {
         id: `msg-${Date.now() + 1}`,
@@ -249,10 +247,7 @@ export default function StudyAssistantScreen() {
       triggerHaptic('success');
     } catch (error: any) {
       console.error('Study plan error:', error);
-      const errorMessage = error?.message?.includes('API Error')
-        ? 'Failed to generate study plan. Please add your free API key in Settings to enable this feature.'
-        : 'Failed to generate study plan. Please make sure you have a valid API key configured in Settings.';
-      Alert.alert('Error', errorMessage);
+      Alert.alert('Error', 'Failed to generate study plan. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -272,10 +267,7 @@ export default function StudyAssistantScreen() {
       triggerHaptic('success');
     } catch (error: any) {
       console.error('Quiz error:', error);
-      const errorMessage = error?.message?.includes('API Error')
-        ? 'Failed to generate quiz. Please add your free API key in Settings to enable this feature.'
-        : 'Failed to generate quiz. Please make sure you have a valid API key configured in Settings.';
-      Alert.alert('Error', errorMessage);
+      Alert.alert('Error', 'Failed to generate quiz. Please try again.');
     } finally {
       setIsLoading(false);
     }

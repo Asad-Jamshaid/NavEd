@@ -1396,6 +1396,7 @@ export const PARKING_LOTS: ParkingLot[] = [
     availableSpots: 50,
     type: 'mixed',
     isAccessible: true,
+    disabledParkingSpots: 5, // 5 dedicated disabled parking spots
     operatingHours: {
       open: '06:00',
       close: '22:00',
@@ -1418,6 +1419,7 @@ export const PARKING_LOTS: ParkingLot[] = [
     availableSpots: 40,
     type: 'car',
     isAccessible: true,
+    disabledParkingSpots: 3, // 3 dedicated disabled parking spots
     operatingHours: {
       open: '07:00',
       close: '22:00',
@@ -1438,6 +1440,7 @@ export const PARKING_LOTS: ParkingLot[] = [
     availableSpots: 30,
     type: 'mixed',
     isAccessible: true,
+    disabledParkingSpots: 0, // No dedicated disabled parking spots
     operatingHours: {
       open: '06:00',
       close: '22:00',

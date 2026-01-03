@@ -91,20 +91,46 @@ export const darkColors = {
   full: '#F87171',
 };
 
-// High Contrast (Accessibility) - Better colors for visibility
+// High Contrast (Accessibility) - Improved colors for better visibility and comfort
 export const highContrastColors = {
-  background: '#FFFFFF',
+  // Backgrounds - Off-white for reduced eye strain
+  background: '#F8F8F8',
   surface: '#FFFFFF',
-  surfaceVariant: '#F0F0F0',
-  textPrimary: '#000000',
-  textSecondary: '#333333',
-  primary: '#0066CC',
-  border: '#000000',
-  accent: '#0066CC',
-  success: '#008000',
-  warning: '#FF6600',
-  error: '#CC0000',
-  info: '#0066CC',
+  surfaceVariant: '#EEEEEE',
+
+  // Text - Dark gray instead of pure black
+  textPrimary: '#1A1A1A',
+  textSecondary: '#404040',
+  textTertiary: '#666666',
+  textInverse: '#FFFFFF',
+
+  // Primary - Strong blue with good contrast
+  primary: '#0052CC',
+  primaryLight: '#0065FF',
+  primaryDark: '#003D99',
+
+  // Secondary - Strong green
+  secondary: '#00875A',
+  secondaryLight: '#00A36C',
+  secondaryDark: '#006644',
+
+  // Semantic colors
+  success: '#00875A',
+  warning: '#FF8B00',  // Orange instead of harsh yellow
+  error: '#DE350B',
+  info: '#0052CC',
+
+  // Borders
+  border: '#2D2D2D',
+  divider: '#CCCCCC',
+
+  // Overlay
+  overlay: 'rgba(0, 0, 0, 0.7)',
+
+  // Status Colors
+  available: '#00875A',
+  moderate: '#FF8B00',
+  full: '#DE350B',
 };
 
 // ==========================================

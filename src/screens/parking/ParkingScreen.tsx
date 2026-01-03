@@ -324,9 +324,9 @@ export default function ParkingScreen() {
     return { color, label, occupancy };
   };
 
-  // Filter lots
+  // Filter lots - show only lots with dedicated disabled parking spots
   const filteredLots = filterAccessible
-    ? parkingLots.filter(lot => lot.isAccessible)
+    ? parkingLots.filter(lot => (lot.disabledParkingSpots || 0) > 0)
     : parkingLots;
 
   // Time since parked
@@ -451,11 +451,11 @@ export default function ParkingScreen() {
         {/* Section Header */}
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>
-            {filterAccessible ? 'Accessible Parking Only' : 'Parking Lots'}
+            {filterAccessible ? 'Disabled Parking Spots' : 'Parking Lots'}
           </Text>
           <Text style={[styles.updateHint, { color: theme.colors.textTertiary }]}>
             {filterAccessible
-              ? `Showing ${filteredLots.length} accessible lot${filteredLots.length !== 1 ? 's' : ''}`
+              ? `Showing ${filteredLots.length} lot${filteredLots.length !== 1 ? 's' : ''} with dedicated disabled parking`
               : 'Pull to refresh • Tap for details'
             }
           </Text>
@@ -474,8 +474,8 @@ export default function ParkingScreen() {
         {!isLoading && filteredLots.length === 0 && (
           <EmptyState
             icon="accessible"
-            title="No accessible parking found"
-            description="There are no parking lots with accessible parking spaces available at this time"
+            title="No disabled parking spots found"
+            description="There are no parking lots with dedicated disabled parking spaces at this time"
             actionLabel={filterAccessible ? "Show All Parking" : "Refresh"}
             onAction={filterAccessible ? () => setFilterAccessible(false) : loadData}
           />
@@ -513,9 +513,12 @@ export default function ParkingScreen() {
                   <Text style={[styles.parkingName, { color: theme.colors.textPrimary }]}>
                     {lot.name}
                   </Text>
-                  {lot.isAccessible && (
+                  {(lot.disabledParkingSpots || 0) > 0 && (
                     <View style={[styles.accessibleBadge, { backgroundColor: `${theme.colors.secondary}15` }]}>
                       <MaterialIcons name="accessible" size={14} color={theme.colors.secondary} />
+                      <Text style={[styles.disabledSpotsText, { color: theme.colors.secondary }]}>
+                        {lot.disabledParkingSpots}
+                      </Text>
                     </View>
                   )}
                 </View>
@@ -641,7 +644,44 @@ export default function ParkingScreen() {
                 </View>
 
                 <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
-                  How many spots are available at {selectedLot?.name}?
+                  Report availability at {selectedLot?.name}
+                </Text>
+
+                <Text style={[styles.currentCount, { color: theme.colors.textTertiary }]}>
+                  Current count: {selectedLot?.availableSpots} / {selectedLot?.totalSpots} spots
+                </Text>
+
+                {/* Quick Action Buttons */}
+                <View style={styles.quickActions}>
+                  <TouchableOpacity
+                    style={[styles.quickButton, { backgroundColor: theme.colors.success + '20', borderColor: theme.colors.success }]}
+                    onPress={() => {
+                      if (selectedLot) {
+                        const newCount = Math.min(selectedLot.totalSpots, selectedLot.availableSpots + 1);
+                        setReportSpots(newCount.toString());
+                      }
+                    }}
+                  >
+                    <MaterialIcons name="add" size={20} color={theme.colors.success} />
+                    <Text style={[styles.quickButtonText, { color: theme.colors.success }]}>+1 Spot</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.quickButton, { backgroundColor: theme.colors.success + '20', borderColor: theme.colors.success }]}
+                    onPress={() => {
+                      if (selectedLot) {
+                        const newCount = Math.min(selectedLot.totalSpots, selectedLot.availableSpots + 5);
+                        setReportSpots(newCount.toString());
+                      }
+                    }}
+                  >
+                    <MaterialIcons name="add" size={20} color={theme.colors.success} />
+                    <Text style={[styles.quickButtonText, { color: theme.colors.success }]}>+5 Spots</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={[styles.orText, { color: theme.colors.textTertiary }]}>
+                  Or enter exact total:
                 </Text>
 
                 <TextInput
@@ -654,7 +694,7 @@ export default function ParkingScreen() {
                       borderRadius: theme.borderRadius.md,
                     },
                   ]}
-                  placeholder="Number of available spots"
+                  placeholder="Total available spots"
                   placeholderTextColor={theme.colors.textTertiary}
                   keyboardType="number-pad"
                   value={reportSpots}
@@ -873,8 +913,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   accessibleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 4,
+    paddingHorizontal: 6,
     borderRadius: 6,
+    gap: 3,
+  },
+  disabledSpotsText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   statusBadge: {
     flexDirection: 'row',
@@ -990,7 +1038,36 @@ const styles = StyleSheet.create({
   },
   modalSubtitle: {
     fontSize: 14,
-    marginBottom: 20,
+    marginBottom: 12,
+  },
+  currentCount: {
+    fontSize: 13,
+    marginBottom: 16,
+    fontWeight: '600',
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  quickButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    gap: 6,
+  },
+  quickButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  orText: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 12,
   },
   input: {
     borderWidth: 1,

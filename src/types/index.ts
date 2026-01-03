@@ -96,6 +96,7 @@ export interface ParkingLot {
   availableSpots: number;
   type: ParkingType;
   isAccessible: boolean;
+  disabledParkingSpots?: number; // Number of dedicated disabled parking spots
   operatingHours: OperatingHours;
   lastUpdated: Date;
   peakHours: PeakHour[];

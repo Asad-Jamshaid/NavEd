@@ -14,6 +14,7 @@ import {
   Alert,
   Platform,
   Animated,
+  KeyboardAvoidingView,
 } from 'react-native';
 import MapView, { Marker, Polyline, MapLibreMapRef } from '../../components/common/MapViewFallback';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -67,6 +68,8 @@ export default function CampusMapScreen() {
   const [showBuildingDetails, setShowBuildingDetails] = useState(false);
   // 3D Mode State - enabled by default
   const [is3DMode, setIs3DMode] = useState(true);
+  // Satellite View State
+  const [isSatelliteView, setIsSatelliteView] = useState(false);
 
   const accessibilityMode = state.user?.preferences.accessibilityMode;
 
@@ -240,9 +243,14 @@ export default function CampusMapScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Map */}
-      <MapView
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+    >
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        {/* Map */}
+        <MapView
         ref={mapRef}
         style={styles.map}
         initialRegion={{
@@ -493,14 +501,14 @@ export default function CampusMapScreen() {
           style={[
             styles.accessibleFilter,
             {
-              backgroundColor: is3DMode ? theme.colors.primary : theme.colors.surface,
+              backgroundColor: isSatelliteView ? theme.colors.primary : theme.colors.surface,
               borderColor: theme.colors.primary,
               borderRadius: theme.borderRadius.full,
             },
           ]}
           onPress={() => {
-            const newMode = !is3DMode;
-            setIs3DMode(newMode);
+            const newMode = !isSatelliteView;
+            setIsSatelliteView(newMode);
             triggerHaptic('light');
 
             // Change map style
@@ -512,12 +520,12 @@ export default function CampusMapScreen() {
           }}
           accessible={true}
           accessibilityRole="button"
-          accessibilityLabel={is3DMode ? 'Switch to map view' : 'Switch to satellite view'}
+          accessibilityLabel={isSatelliteView ? 'Switch to map view' : 'Switch to satellite view'}
         >
           <MaterialIcons
-            name={is3DMode ? 'satellite' : 'satellite-alt'}
+            name={isSatelliteView ? 'satellite' : 'satellite-alt'}
             size={20}
-            color={is3DMode ? theme.colors.textInverse : theme.colors.primary}
+            color={isSatelliteView ? theme.colors.textInverse : theme.colors.primary}
           />
         </TouchableOpacity>
 
@@ -557,69 +565,72 @@ export default function CampusMapScreen() {
       {/* Building Details Panel */}
       {showBuildingDetails && selectedBuilding && (
         <SimpleCard variant="elevated" style={styles.detailsPanel}>
-          <View style={styles.detailsHeader}>
-            <View style={styles.detailsTitle}>
-              <Text style={[styles.buildingName, { color: theme.colors.textPrimary }]}>
-                {selectedBuilding.name}
-              </Text>
-              <Text style={[styles.buildingShortName, { color: theme.colors.textSecondary }]}>
-                {selectedBuilding.shortName}
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => {
-                setShowBuildingDetails(false);
-                setActiveRoute(null);
-              }}
-              accessible={true}
-              accessibilityRole="button"
-              accessibilityLabel="Close details"
-            >
-              <MaterialIcons name="close" size={24} color={theme.colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={[styles.buildingDescription, { color: theme.colors.textSecondary }]}>
-            {selectedBuilding.description}
-          </Text>
-
-          {/* Accessibility Features */}
-          {selectedBuilding.accessibilityFeatures.length > 0 && (
-            <View style={styles.accessibilityBadges}>
-              {selectedBuilding.accessibilityFeatures.map(feature => (
-                <View
-                  key={feature}
-                  style={[
-                    styles.accessibilityBadge,
-                    {
-                      backgroundColor: `${theme.colors.secondary}15`,
-                      borderRadius: theme.borderRadius.md,
-                    },
-                  ]}
-                >
-                  <MaterialIcons
-                    name={getAccessibilityIcon(feature)}
-                    size={14}
-                    color={theme.colors.secondary}
-                  />
-                  <Text style={[styles.accessibilityText, { color: theme.colors.secondary }]}>
-                    {formatAccessibilityFeature(feature)}
+          {/* Only show building details when NOT navigating */}
+          {!isNavigating && (
+            <>
+              <View style={styles.detailsHeader}>
+                <View style={styles.detailsTitle}>
+                  <Text style={[styles.buildingName, { color: theme.colors.textPrimary }]}>
+                    {selectedBuilding.name}
+                  </Text>
+                  <Text style={[styles.buildingShortName, { color: theme.colors.textSecondary }]}>
+                    {selectedBuilding.shortName}
                   </Text>
                 </View>
-              ))}
-            </View>
-          )}
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowBuildingDetails(false);
+                    setActiveRoute(null);
+                  }}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close details"
+                >
+                  <MaterialIcons name="close" size={24} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
 
-          {/* Action Buttons */}
-          {!isNavigating && (
-            <View style={styles.actionButtons}>
-              <AccessibleButton
-                title="Get Directions"
-                icon="directions"
-                onPress={() => navigateToBuilding(selectedBuilding)}
-                accessibilityHint="Get walking directions to this building"
-              />
-            </View>
+              <Text style={[styles.buildingDescription, { color: theme.colors.textSecondary }]}>
+                {selectedBuilding.description}
+              </Text>
+
+              {/* Accessibility Features */}
+              {selectedBuilding.accessibilityFeatures.length > 0 && (
+                <View style={styles.accessibilityBadges}>
+                  {selectedBuilding.accessibilityFeatures.map(feature => (
+                    <View
+                      key={feature}
+                      style={[
+                        styles.accessibilityBadge,
+                        {
+                          backgroundColor: `${theme.colors.secondary}15`,
+                          borderRadius: theme.borderRadius.md,
+                        },
+                      ]}
+                    >
+                      <MaterialIcons
+                        name={getAccessibilityIcon(feature)}
+                        size={14}
+                        color={theme.colors.secondary}
+                      />
+                      <Text style={[styles.accessibilityText, { color: theme.colors.secondary }]}>
+                        {formatAccessibilityFeature(feature)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Action Buttons */}
+              <View style={styles.actionButtons}>
+                <AccessibleButton
+                  title="Get Directions"
+                  icon="directions"
+                  onPress={() => navigateToBuilding(selectedBuilding)}
+                  accessibilityHint="Get walking directions to this building"
+                />
+              </View>
+            </>
           )}
 
           {/* Turn-by-Turn Navigation Panel */}
@@ -696,7 +707,8 @@ export default function CampusMapScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
