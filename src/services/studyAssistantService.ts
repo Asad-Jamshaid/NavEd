@@ -6,6 +6,7 @@
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import JSZip from 'jszip';
 import {
   Document,
   DocumentChunk,
@@ -77,6 +78,8 @@ export async function pickDocument(): Promise<Document | null> {
         'text/plain',
         'application/msword',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
       ],
       copyToCacheDirectory: true,
     });
@@ -129,46 +132,206 @@ function getDocumentType(filename: string): Document['type'] {
 }
 
 // ==========================================
-// PDF Extraction API Configuration
-// Set this to your Vercel deployment URL
-// ==========================================
-const PDF_API_URL = process.env.EXPO_PUBLIC_PDF_API_URL || 'https://your-app.vercel.app';
-
-// ==========================================
-// Text Extraction with PDF Support
+// Text Extraction - Supports DOCX, PPTX, PDF, TXT
 // ==========================================
 export async function extractTextFromDocument(doc: Document): Promise<string> {
   try {
-    if (doc.type === 'txt') {
-      // Direct read for text files
-      const content = await FileSystem.readAsStringAsync(doc.uri);
-      return content;
-    }
+    console.log(`Extracting text from ${doc.name} (type: ${doc.type})`);
 
-    if (doc.type === 'pdf') {
-      // Use Vercel API for PDF extraction
-      return await extractTextFromPDF(doc);
+    switch (doc.type) {
+      case 'txt':
+        return await extractTextFromTxt(doc);
+      case 'docx':
+      case 'doc':
+        return await extractTextFromDocx(doc);
+      case 'pptx':
+      case 'ppt':
+        return await extractTextFromPptx(doc);
+      case 'pdf':
+        return await extractTextFromPDF(doc);
+      default:
+        // Try reading as text for unknown formats
+        try {
+          const content = await FileSystem.readAsStringAsync(doc.uri);
+          if (content && content.length > 50) {
+            return content;
+          }
+        } catch {
+          // Binary file, cannot read as text
+        }
+        return `Document loaded: ${doc.name}. This format is not fully supported for text extraction.`;
     }
-
-    // For other formats, try to read as text
-    try {
-      const content = await FileSystem.readAsStringAsync(doc.uri);
-      if (content && content.length > 100) {
-        return content;
-      }
-    } catch {
-      // File is binary, cannot read as text
-    }
-
-    return `Document loaded: ${doc.name}. For best results with AI features, please use .txt files or PDFs.`;
   } catch (error) {
     console.error('Error extracting text:', error);
-    return `Document: ${doc.name}. Unable to extract text. Please try using a .txt file.`;
+    return `Error extracting text from ${doc.name}. Please try a different file format (.txt, .docx, .pptx, or .pdf).`;
   }
 }
 
 // ==========================================
-// Extract Text from PDF using Vercel API
+// Extract Text from TXT files
+// ==========================================
+async function extractTextFromTxt(doc: Document): Promise<string> {
+  const content = await FileSystem.readAsStringAsync(doc.uri);
+  console.log(`TXT extracted: ${content.length} characters`);
+  return content;
+}
+
+// ==========================================
+// Extract Text from DOCX files using JSZip
+// DOCX is a ZIP archive with XML content
+// ==========================================
+async function extractTextFromDocx(doc: Document): Promise<string> {
+  try {
+    // Read file as base64
+    const base64 = await FileSystem.readAsStringAsync(doc.uri, {
+      encoding: 'base64' as any,
+    });
+
+    // Convert base64 to array buffer
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // Load the ZIP file
+    const zip = await JSZip.loadAsync(bytes);
+
+    // Get the main document XML
+    const documentXml = await zip.file('word/document.xml')?.async('string');
+
+    if (!documentXml) {
+      throw new Error('Could not find document.xml in DOCX file');
+    }
+
+    // Parse XML and extract text
+    const text = parseDocxXml(documentXml);
+
+    console.log(`DOCX extracted: ${text.length} characters`);
+    return text;
+  } catch (error: any) {
+    console.error('DOCX extraction error:', error);
+
+    // Fallback: Try using Gemini to extract text
+    return await extractTextWithGemini(doc, 'Word document');
+  }
+}
+
+// Parse DOCX XML to extract text content
+function parseDocxXml(xml: string): string {
+  const textContent: string[] = [];
+
+  // Extract text from <w:t> tags (Word text elements)
+  const textRegex = /<w:t[^>]*>([^<]*)<\/w:t>/g;
+  let match;
+
+  while ((match = textRegex.exec(xml)) !== null) {
+    if (match[1]) {
+      textContent.push(match[1]);
+    }
+  }
+
+  // Join with spaces and clean up
+  let text = textContent.join(' ');
+
+  // Handle paragraph breaks - look for </w:p> tags
+  text = xml.replace(/<\/w:p>/g, '\n\n')
+    .replace(/<w:t[^>]*>([^<]*)<\/w:t>/g, '$1')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\n\s+/g, '\n')
+    .trim();
+
+  // If regex approach didn't work well, use simple approach
+  if (text.length < 50 && textContent.length > 0) {
+    text = textContent.join(' ');
+  }
+
+  return text || textContent.join(' ');
+}
+
+// ==========================================
+// Extract Text from PPTX files using JSZip
+// PPTX is a ZIP archive with slide XML files
+// ==========================================
+async function extractTextFromPptx(doc: Document): Promise<string> {
+  try {
+    // Read file as base64
+    const base64 = await FileSystem.readAsStringAsync(doc.uri, {
+      encoding: 'base64' as any,
+    });
+
+    // Convert base64 to array buffer
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // Load the ZIP file
+    const zip = await JSZip.loadAsync(bytes);
+
+    // Get all slide files
+    const slideFiles: string[] = [];
+    zip.forEach((relativePath, file) => {
+      if (relativePath.match(/ppt\/slides\/slide\d+\.xml$/)) {
+        slideFiles.push(relativePath);
+      }
+    });
+
+    // Sort slides by number
+    slideFiles.sort((a, b) => {
+      const numA = parseInt(a.match(/slide(\d+)/)?.[1] || '0');
+      const numB = parseInt(b.match(/slide(\d+)/)?.[1] || '0');
+      return numA - numB;
+    });
+
+    // Extract text from each slide
+    const allText: string[] = [];
+
+    for (let i = 0; i < slideFiles.length; i++) {
+      const slideXml = await zip.file(slideFiles[i])?.async('string');
+      if (slideXml) {
+        const slideText = parsePptxSlideXml(slideXml);
+        if (slideText.trim()) {
+          allText.push(`--- Slide ${i + 1} ---\n${slideText}`);
+        }
+      }
+    }
+
+    const text = allText.join('\n\n');
+    console.log(`PPTX extracted: ${text.length} characters from ${slideFiles.length} slides`);
+
+    return text || 'No text content found in presentation.';
+  } catch (error: any) {
+    console.error('PPTX extraction error:', error);
+
+    // Fallback: Try using Gemini to extract text
+    return await extractTextWithGemini(doc, 'PowerPoint presentation');
+  }
+}
+
+// Parse PPTX slide XML to extract text content
+function parsePptxSlideXml(xml: string): string {
+  const textContent: string[] = [];
+
+  // Extract text from <a:t> tags (PowerPoint text elements)
+  const textRegex = /<a:t>([^<]*)<\/a:t>/g;
+  let match;
+
+  while ((match = textRegex.exec(xml)) !== null) {
+    if (match[1] && match[1].trim()) {
+      textContent.push(match[1]);
+    }
+  }
+
+  // Join text elements, grouping by paragraphs
+  return textContent.join(' ').replace(/\s+/g, ' ').trim();
+}
+
+// ==========================================
+// Extract Text from PDF using Gemini AI
+// Uses Gemini's multimodal capability
 // ==========================================
 async function extractTextFromPDF(doc: Document): Promise<string> {
   try {
@@ -177,42 +340,139 @@ async function extractTextFromPDF(doc: Document): Promise<string> {
       encoding: 'base64' as any,
     });
 
-    // Call Vercel API
-    const response = await axios.post(
-      `${PDF_API_URL}/api/extract-pdf`,
+    // Use Gemini to extract text from PDF
+    if (!API_KEYS.gemini) {
+      return 'PDF extraction requires a Gemini API key. Please configure one in Settings.';
+    }
+
+    console.log('Extracting PDF text using Gemini AI...');
+
+    // Call Gemini with the PDF as inline data
+    const response = await fetch(
+      `${LLM_CONFIG.gemini.baseUrl}/models/${LLM_CONFIG.gemini.model}:generateContent?key=${API_KEYS.gemini}`,
       {
-        pdfData: base64,
-        filename: doc.name,
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        timeout: 30000, // 30 second timeout
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  inline_data: {
+                    mime_type: 'application/pdf',
+                    data: base64,
+                  },
+                },
+                {
+                  text: 'Extract and return ALL the text content from this PDF document. Return only the extracted text, preserving the structure and formatting as much as possible. Do not summarize or modify the content.',
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 8192,
+          },
+        }),
       }
     );
 
-    if (response.data.success) {
-      console.log(`PDF extracted: ${response.data.metadata.pages} pages, ${response.data.metadata.textLength} characters`);
-      return response.data.text;
-    } else {
-      throw new Error(response.data.error || 'PDF extraction failed');
+    const data = await response.json();
+
+    if (data.error) {
+      console.error('Gemini PDF extraction error:', data.error);
+      throw new Error(data.error.message || 'PDF extraction failed');
     }
+
+    const extractedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (extractedText) {
+      console.log(`PDF extracted: ${extractedText.length} characters`);
+      return extractedText;
+    }
+
+    throw new Error('No text extracted from PDF');
   } catch (error: any) {
     console.error('PDF extraction error:', error);
+    return `Could not extract text from PDF: ${error.message}. The PDF might be image-based or protected.`;
+  }
+}
 
-    // Check if API is configured
-    if (PDF_API_URL.includes('your-app')) {
-      return `PDF extraction requires backend setup. Please:\n\n1. Deploy the /api folder to Vercel (free)\n2. Set EXPO_PUBLIC_PDF_API_URL environment variable\n\nAlternatively, use .txt files for now.\n\nSee docs/research/PDF_EXTRACTION_SOLUTIONS.md for details.`;
+// ==========================================
+// Fallback: Extract text using Gemini AI
+// For documents that can't be parsed locally
+// ==========================================
+async function extractTextWithGemini(doc: Document, docType: string): Promise<string> {
+  try {
+    if (!API_KEYS.gemini) {
+      return `${docType} extraction requires a Gemini API key. Please configure one in Settings.`;
     }
 
-    // API error
-    if (error.response) {
-      return `PDF extraction failed: ${error.response.data.error || error.response.statusText}`;
+    // Read file as base64
+    const base64 = await FileSystem.readAsStringAsync(doc.uri, {
+      encoding: 'base64' as any,
+    });
+
+    // Determine MIME type
+    let mimeType = 'application/octet-stream';
+    if (doc.type === 'docx') {
+      mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    } else if (doc.type === 'pptx') {
+      mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+    } else if (doc.type === 'doc') {
+      mimeType = 'application/msword';
+    } else if (doc.type === 'ppt') {
+      mimeType = 'application/vnd.ms-powerpoint';
     }
 
-    // Network error
-    return `PDF extraction failed: ${error.message}. Check your internet connection.`;
+    console.log(`Extracting ${docType} text using Gemini AI...`);
+
+    const response = await fetch(
+      `${LLM_CONFIG.gemini.baseUrl}/models/${LLM_CONFIG.gemini.model}:generateContent?key=${API_KEYS.gemini}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  inline_data: {
+                    mime_type: mimeType,
+                    data: base64,
+                  },
+                },
+                {
+                  text: `Extract and return ALL the text content from this ${docType}. Return only the extracted text, preserving the structure. Do not summarize.`,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 8192,
+          },
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (data.error) {
+      throw new Error(data.error.message || 'Extraction failed');
+    }
+
+    const extractedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (extractedText) {
+      console.log(`${docType} extracted via Gemini: ${extractedText.length} characters`);
+      return extractedText;
+    }
+
+    return `Could not extract text from ${docType}. Please try a different file.`;
+  } catch (error: any) {
+    console.error(`${docType} Gemini extraction error:`, error);
+    return `Could not extract text from ${docType}: ${error.message}`;
   }
 }
 
