@@ -49,6 +49,7 @@ coverage/
 # Environment
 .env
 .env.local
+.env.*.local
 .env.development.local
 .env.test.local
 .env.production.local
@@ -61,6 +62,8 @@ yarn-error.log*
 # macOS
 .DS_Store
 *.pem
+*.key
+google-service-account.json
 
 # IDE
 .idea/
@@ -75,6 +78,7 @@ build/
 *.log
 tmp/
 temp/
+nul
 
 # API Keys (NEVER commit these!)
 **/secrets.ts

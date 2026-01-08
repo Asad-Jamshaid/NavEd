@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run tests
+        run: npm run test:ci
+      
+      - name: Extract tag name
+        id: tag
+        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+      - name: Create release
+        uses: ncipollo/create-release@v1
+        with:
+          tag: ${{ steps.tag.outputs.TAG_NAME }}
+          name: Release ${{ steps.tag.outputs.TAG_NAME }}
+          body: |
+            ## Changes in ${{ steps.tag.outputs.TAG_NAME }}
+            
+            See [CHANGELOG.md](CHANGELOG.md) for detailed changes.
+            
+            ### Installation
+            ```bash
+            npm install
+            ```
+            
+            ### Build
+            ```bash
+            npm run build:android
+            npm run build:ios
+            ```
+          draft: false
+          prerelease: false
+

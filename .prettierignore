@@ -1,0 +1,12 @@
+node_modules/
+.expo/
+dist/
+coverage/
+android/
+ios/
+*.lock
+package-lock.json
+__mocks__/
+__tests__/
+backend/
+

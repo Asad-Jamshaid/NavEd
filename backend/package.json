@@ -1,0 +1,25 @@
+{
+  "name": "naved-backend",
+  "version": "1.0.0",
+  "description": "NavEd Backend - API Serverless Functions and Database",
+  "private": true,
+  "scripts": {
+    "test:api": "node scripts/test-api-key.js",
+    "test:supabase": "node scripts/test-supabase-connection.js",
+    "test:supabase-direct": "node scripts/test-supabase-direct.js",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@vercel/node": "^3.0.0",
+    "pdf-parse": "^1.1.1",
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+

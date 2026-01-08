@@ -3,14 +3,14 @@
   "name": "naved-pdf-api",
   "builds": [
     {
-      "src": "api/**/*.ts",
+      "src": "backend/api/**/*.ts",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/$1"
+      "dest": "/backend/api/$1"
     }
   ],
   "env": {
@@ -36,3 +36,4 @@
     }
   ]
 }
+

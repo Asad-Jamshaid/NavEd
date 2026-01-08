@@ -5,6 +5,7 @@
 
 import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
 import { ChatMessage } from '../../src/types';
 import {
   pickDocument,
@@ -26,7 +27,28 @@ import { Document } from '../../src/types';
 describe('Study Assistant Flow Integration Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    AsyncStorage.clear();
+
+    // Stateful AsyncStorage mock for integration tests
+    let storage: Record<string, string> = {};
+
+    (AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+      return Promise.resolve(storage[key] || null);
+    });
+
+    (AsyncStorage.setItem as jest.Mock).mockImplementation((key, value) => {
+      storage[key] = value;
+      return Promise.resolve();
+    });
+
+    (AsyncStorage.removeItem as jest.Mock).mockImplementation((key) => {
+      delete storage[key];
+      return Promise.resolve();
+    });
+
+    (AsyncStorage.clear as jest.Mock).mockImplementation(() => {
+      storage = {};
+      return Promise.resolve();
+    });
 
     // Mock successful API responses
     (global.fetch as jest.Mock).mockResolvedValue({
@@ -69,9 +91,9 @@ describe('Study Assistant Flow Integration Tests', () => {
     `;
 
     it('should complete document upload → text extraction → chunking workflow', async () => {
-      // Mock FileSystem reading
-      const mockFileSystem = require('expo-file-system');
-      mockFileSystem.readAsStringAsync.mockResolvedValue(sampleText);
+      // Mock FileSystem reading - override the default mock implementation
+      (FileSystem.readAsStringAsync as jest.Mock).mockReset();
+      (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValueOnce(sampleText);
 
       // Step 1: Extract text
       const extractedText = await extractTextFromDocument(mockDocument);

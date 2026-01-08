@@ -11,19 +11,31 @@ module.exports = function (api) {
       ...(isTest ? ['@babel/preset-typescript'] : []),
     ],
     plugins: [
+      // Environment variables from .env file
+      [
+        'module:react-native-dotenv',
+        {
+          envName: 'APP_ENV',
+          moduleName: '@env',
+          path: '.env',
+          safe: false,
+          allowUndefined: true,
+          verbose: false,
+        },
+      ],
       [
         'module-resolver',
         {
           root: ['./'],
           alias: {
-            '@': './src',
-            '@components': './src/components',
-            '@screens': './src/screens',
-            '@services': './src/services',
-            '@contexts': './src/contexts',
-            '@utils': './src/utils',
-            '@types': './src/types',
-            '@data': './src/data',
+            '@': './frontend',
+            '@components': './frontend/shared/components',
+            '@screens': './frontend/features',
+            '@services': './frontend/shared/services',
+            '@contexts': './frontend/shared/contexts',
+            '@utils': './frontend/shared/utils',
+            '@types': './frontend/shared/types',
+            '@data': './frontend/shared/data',
             '@assets': './assets',
           },
         },

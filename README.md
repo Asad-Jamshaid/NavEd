@@ -5,6 +5,11 @@
   No IoT devices required • Uses FREE APIs • Accessibility-focused
 </p>
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
+[![React Native](https://img.shields.io/badge/React%20Native-0.81-blue.svg)](https://reactnative.dev/)
+[![Expo](https://img.shields.io/badge/Expo-54.0-black.svg)](https://expo.dev/)
+
 ---
 
 ## 📱 About NavEd
@@ -93,16 +98,16 @@ This app is specifically designed for students on a tight budget:
 
 ---
 
-## 🛠️ Installation
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 18+ (see `.nvmrc`)
 - npm or yarn
-- Expo CLI
+- Expo CLI (`npm install -g expo-cli`)
 - Android Studio (for Android) or Xcode (for iOS)
 
-### Setup
+### Installation
 
 ```bash
 # Clone the repository
@@ -112,28 +117,62 @@ cd naved
 # Install dependencies
 npm install
 
+# Copy environment variables template
+cp .env.example .env
+
+# Edit .env with your API keys (optional)
+# See .env.example for required variables
+
 # Start the development server
-npx expo start
+npm start
 
 # Run on Android
-npx expo run:android
+npm run android
 
 # Run on iOS
-npx expo run:ios
+npm run ios
+```
+
+### Development
+
+```bash
+# Run tests
+npm test
+
+# Run tests with coverage
+npm run test:coverage
+
+# Lint code
+npm run lint
+
+# Fix linting issues
+npm run lint:fix
+
+# Type check
+npm run type-check
+
+# Format code
+npm run format
+
+# Validate (type-check + lint + format)
+npm run validate
 ```
 
 ### Configuration
 
-1. **Update Campus Data**
+1. **Environment Variables**
 
-   Edit `src/data/campusData.ts` with your university's:
+   Copy `.env.example` to `.env` and fill in:
+   - `SUPABASE_URL` and `SUPABASE_ANON_KEY` (optional, for cloud sync)
+   - `GEMINI_API_KEY` (optional, for PDF extraction and study features)
+   - `GROQ_API_KEY` and `HUGGINGFACE_API_KEY` (optional, alternative LLMs)
+
+2. **Update Campus Data**
+
+   Edit `frontend/shared/data/campusData.ts` with your university's:
    - Building coordinates
    - Room information
    - Parking lot locations
-
-2. **Add API Keys** (Optional)
-
-   In the app, go to Study > Settings icon and add your free API key.
 
 3. **Add Video Routes** (Optional)
 
@@ -149,32 +188,61 @@ npx expo run:ios
 
 ```
 NavEd/
-├── App.tsx                 # Main app entry
-├── src/
-│   ├── components/         # Reusable UI components
-│   │   ├── common/         # Buttons, Cards, SearchBar
-│   │   ├── navigation/     # Map markers, route display
-│   │   ├── parking/        # Parking status cards
-│   │   └── study/          # Chat bubbles, quiz cards
-│   ├── contexts/           # React Context providers
-│   │   └── AppContext.tsx  # Global state management
-│   ├── data/               # Static campus data
-│   │   └── campusData.ts   # Buildings, rooms, parking lots
-│   ├── screens/            # App screens
-│   │   ├── navigation/     # Campus map screen
-│   │   ├── parking/        # Parking dashboard
-│   │   ├── study/          # Study assistant
-│   │   └── settings/       # App settings
-│   ├── services/           # Business logic
-│   │   ├── navigationService.ts   # Routing (OSRM)
-│   │   ├── parkingService.ts      # Parking predictions
-│   │   ├── studyAssistantService.ts # RAG + LLM
-│   │   └── accessibilityService.ts # Voice, haptics
-│   ├── types/              # TypeScript definitions
-│   └── utils/              # Constants, helpers
-├── assets/                 # Images, videos, fonts
-└── package.json
+├── frontend/               # React Native mobile app
+│   ├── app/                # App entry point
+│   │   └── App.tsx         # Root component
+│   ├── features/           # Feature-based modules
+│   │   ├── auth/           # Authentication
+│   │   ├── navigation/     # Campus navigation
+│   │   ├── parking/        # Parking guidance
+│   │   └── study/          # Study assistant
+│   └── shared/             # Shared code
+│       ├── components/     # Reusable components
+│       ├── contexts/       # React contexts
+│       ├── services/       # Shared services
+│       ├── types/          # TypeScript types
+│       └── utils/          # Utilities
+├── backend/                # Backend services
+│   ├── api/                # Serverless functions
+│   ├── database/           # Database migrations
+│   └── scripts/            # Utility scripts
+├── __tests__/              # Test files (mirrors frontend/)
+├── assets/                 # Static assets
+└── docs/                   # Documentation
 ```
+
+### Architecture
+
+```mermaid
+graph TB
+    subgraph Frontend["Frontend (React Native)"]
+        App[App.tsx]
+        Features[Features]
+        Shared[Shared]
+        
+        Features --> Auth[Auth Feature]
+        Features --> Nav[Navigation Feature]
+        Features --> Parking[Parking Feature]
+        Features --> Study[Study Feature]
+        
+        Shared --> Components[Components]
+        Shared --> Services[Services]
+        Shared --> Contexts[Contexts]
+    end
+    
+    subgraph Backend["Backend Services"]
+        API[API Functions]
+        DB[(Supabase)]
+    end
+    
+    App --> Features
+    App --> Shared
+    Features --> Shared
+    Study --> API
+    Parking --> DB
+```
+
+See [STRUCTURE.md](STRUCTURE.md) for detailed structure documentation.
 
 ---
 
@@ -247,7 +315,19 @@ MIT License - Feel free to use for your FYP!
 
 ## 🤝 Contributing
 
-Contributions welcome! This is an open-source project designed to help students.
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+### Development Workflow
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Run tests and linting (`npm run validate`)
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ---
 

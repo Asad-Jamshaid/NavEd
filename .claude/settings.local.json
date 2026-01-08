@@ -39,8 +39,10 @@
       "Bash(node scripts/resizeIcons.js:*)",
       "Bash(node test-api-key.js:*)",
       "Bash(git add:*)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nUpdate API key and switch to Gemini 2.5 Flash\n\n- Updated Gemini API key to new key\n- Switched model from gemini-1.5-flash to gemini-2.5-flash\n- Gemini 2.5 Flash is free tier compatible and verified working\n- Provides faster responses for Study Assistant features\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(git push:*)"
+      "Bash(git commit -m *)",
+      "Bash(git push:*)",
+      "Bash(curl:https://127.0.0.1:7242/ingest/*)",
+      "Bash(where:*)"
     ]
   }
 }

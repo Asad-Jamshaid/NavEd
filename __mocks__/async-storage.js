@@ -7,4 +7,5 @@ module.exports = {
     getAllKeys: jest.fn(() => Promise.resolve([])),
     multiGet: jest.fn(() => Promise.resolve([])),
     multiSet: jest.fn(() => Promise.resolve()),
+    multiRemove: jest.fn(() => Promise.resolve()),
 };
