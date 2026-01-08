@@ -6,11 +6,11 @@ const SUPABASE_URL = 'https://clusdofsjhjkzrzgjzhw.supabase.co';
 // Example: $env:SUPABASE_ANON_KEY="your-key-here"; node backend/scripts/test-supabase-direct.js
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
-if (!SUPABASE_ANON_KEY) {
-  console.error('❌ Error: SUPABASE_ANON_KEY environment variable is not set!');
-  console.error('Please set it before running this script:');
-  console.error('  Windows: $env:SUPABASE_ANON_KEY="your-key-here"; node backend/scripts/test-supabase-direct.js');
-  console.error('  Linux/Mac: SUPABASE_ANON_KEY="your-key-here" node backend/scripts/test-supabase-direct.js');
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.error('❌ Error: Required environment variables are not set!');
+  console.error('Please set SUPABASE_URL and SUPABASE_ANON_KEY before running this script:');
+  console.error('  Windows: $env:SUPABASE_URL="your-url"; $env:SUPABASE_ANON_KEY="your-key"; node backend/scripts/test-supabase-direct.js');
+  console.error('  Linux/Mac: SUPABASE_URL="your-url" SUPABASE_ANON_KEY="your-key" node backend/scripts/test-supabase-direct.js');
   process.exit(1);
 }
 
@@ -88,9 +88,9 @@ CREATE POLICY "Users can insert own profile"
       }
       console.log('\n✅ Your Supabase is properly configured!');
       console.log('\nNext steps:');
-      console.log('1. Update your .env file to include the values on the same line:');
-      console.log('   SUPABASE_URL=https://clusdofsjhjkzrzgjzhw.supabase.co');
-      console.log('   SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...');
+      console.log('1. Update your .env file with your Supabase credentials:');
+      console.log('   SUPABASE_URL=your-supabase-url');
+      console.log('   SUPABASE_ANON_KEY=your-anon-key');
       console.log('2. If you see the table error above, run the SQL in your Supabase dashboard');
       console.log('3. Restart your app to load the updated .env file');
       
