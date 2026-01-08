@@ -39,7 +39,9 @@ try {
 
 // Hardcoded fallback API key for EAS production builds
 // This ensures the app works even when @env fails
-const FALLBACK_GEMINI_KEY = 'AIzaSyAS-tvBo-dyVIax-zdOZLghymhUaeelYKg';
+// Removed hardcoded fallback key for security
+// Users must provide their own API key via environment variables
+const FALLBACK_GEMINI_KEY = '';
 
 const STORAGE_KEYS = {
   DOCUMENTS: '@naved_study_documents',

@@ -2,7 +2,17 @@
 const { createClient } = require('@supabase/supabase-js');
 
 const SUPABASE_URL = 'https://clusdofsjhjkzrzgjzhw.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsdXNkb2Zzamhqa3pyemdqemh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc4NTYxNzAsImV4cCI6MjA4MzQzMjE3MH0.AFGWZUxTWDr14IcxZkbQNBCbmfc47fkSp1806ubQ31k';
+// IMPORTANT: Set SUPABASE_ANON_KEY environment variable before running
+// Example: $env:SUPABASE_ANON_KEY="your-key-here"; node backend/scripts/test-supabase-direct.js
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+
+if (!SUPABASE_ANON_KEY) {
+  console.error('❌ Error: SUPABASE_ANON_KEY environment variable is not set!');
+  console.error('Please set it before running this script:');
+  console.error('  Windows: $env:SUPABASE_ANON_KEY="your-key-here"; node backend/scripts/test-supabase-direct.js');
+  console.error('  Linux/Mac: SUPABASE_ANON_KEY="your-key-here" node backend/scripts/test-supabase-direct.js');
+  process.exit(1);
+}
 
 console.log('=== Testing Supabase Connection ===\n');
 console.log('URL:', SUPABASE_URL);

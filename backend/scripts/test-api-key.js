@@ -1,6 +1,16 @@
 // Quick test script to verify Gemini API key
-const API_KEY = 'AIzaSyDExMxcHCMxYwzD5I-RFNMJVG15lNKymMU';
+// IMPORTANT: Set GEMINI_API_KEY environment variable before running
+// Example: $env:GEMINI_API_KEY="your-key-here"; node backend/scripts/test-api-key.js
+const API_KEY = process.env.GEMINI_API_KEY || '';
 const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
+
+if (!API_KEY) {
+  console.error('❌ Error: GEMINI_API_KEY environment variable is not set!');
+  console.error('Please set it before running this script:');
+  console.error('  Windows: $env:GEMINI_API_KEY="your-key-here"; node backend/scripts/test-api-key.js');
+  console.error('  Linux/Mac: GEMINI_API_KEY="your-key-here" node backend/scripts/test-api-key.js');
+  process.exit(1);
+}
 
 async function listAvailableModels() {
   console.log('Checking available models for this API key...\n');
