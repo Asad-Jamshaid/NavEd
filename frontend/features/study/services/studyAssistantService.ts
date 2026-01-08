@@ -37,12 +37,8 @@ try {
   console.log('Environment variables not available, using fallback');
 }
 
-// Hardcoded fallback API key for EAS production builds
-// This ensures the app works even when @env fails
-// Removed hardcoded fallback key for security
-// Users must provide their own API key via environment variables
-const FALLBACK_GEMINI_KEY = '';
-
+// IMPORTANT: No hardcoded fallback keys for security
+// All API keys must come from environment variables or user input in Settings
 const STORAGE_KEYS = {
   DOCUMENTS: '@naved_study_documents',
   CHAT_HISTORY: '@naved_chat_history',
@@ -54,10 +50,10 @@ const STORAGE_KEYS = {
 // ==========================================
 // API KEY CONFIGURATION
 // Keys loaded from .env file (secure) or can be overridden by user in Settings
-// Falls back to hardcoded key for EAS production builds
+// No hardcoded fallbacks - users must provide their own keys
 // ==========================================
 let API_KEYS = {
-  gemini: GEMINI_API_KEY || FALLBACK_GEMINI_KEY, // Use fallback if env not available
+  gemini: GEMINI_API_KEY || '', // Must come from .env or user settings
   groq: GROQ_API_KEY || '',
   huggingface: HUGGINGFACE_API_KEY || '',
 };
@@ -73,14 +69,12 @@ export async function loadApiKeys() {
     AsyncStorage.getItem('@naved_api_key_groq'),
     AsyncStorage.getItem('@naved_api_key_huggingface'),
   ]);
-  // Use saved keys if they exist, otherwise fall back to .env values or hardcoded fallback
+  // Use saved keys if they exist, otherwise fall back to .env values
+  // No hardcoded fallbacks for security
   if (gemini && gemini.length > 0) {
     API_KEYS.gemini = gemini;
   } else if (GEMINI_API_KEY && GEMINI_API_KEY.length > 0) {
     API_KEYS.gemini = GEMINI_API_KEY;
-  } else {
-    // Use hardcoded fallback for production builds
-    API_KEYS.gemini = FALLBACK_GEMINI_KEY;
   }
   if (groq && groq.length > 0) {
     API_KEYS.groq = groq;

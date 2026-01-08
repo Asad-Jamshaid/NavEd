@@ -1,9 +1,8 @@
 // Direct Supabase connection test with provided credentials
+// IMPORTANT: Set SUPABASE_URL and SUPABASE_ANON_KEY environment variables before running
 const { createClient } = require('@supabase/supabase-js');
 
-const SUPABASE_URL = 'https://clusdofsjhjkzrzgjzhw.supabase.co';
-// IMPORTANT: Set SUPABASE_ANON_KEY environment variable before running
-// Example: $env:SUPABASE_ANON_KEY="your-key-here"; node backend/scripts/test-supabase-direct.js
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {

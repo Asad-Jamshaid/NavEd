@@ -142,10 +142,23 @@ export const LLM_CONFIG = {
 
 // Supabase - FREE tier configuration
 // 500MB database, 1GB file storage, 2GB bandwidth
+// IMPORTANT: All Supabase credentials must come from environment variables
+// Never hardcode credentials in this file!
+let SUPABASE_URL = '';
+let SUPABASE_ANON_KEY = '';
+
+try {
+  const env = require('@env');
+  SUPABASE_URL = env.SUPABASE_URL || env.EXPO_PUBLIC_SUPABASE_URL || '';
+  SUPABASE_ANON_KEY = env.SUPABASE_ANON_KEY || env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+} catch (e) {
+  // @env not available - will use empty strings (app will work in local-only mode)
+}
+
 export const SUPABASE_CONFIG = {
-  // Production Supabase credentials (used as fallback when .env not available)
-  url: 'https://clusdofsjhjkzrzgjzhw.supabase.co',
-  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsdXNkb2Zzamhqa3pyemdqemh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc4NTYxNzAsImV4cCI6MjA4MzQzMjE3MH0.AFGWZUxTWDr14IcxZkbQNBCbmfc47fkSp1806ubQ31k',
+  // Placeholder values - actual values must come from .env file
+  url: SUPABASE_URL || 'YOUR_SUPABASE_URL',
+  anonKey: SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY',
 };
 
 // ==========================================
