@@ -18,6 +18,7 @@ import {
   AssignmentTask,
 } from '../../../shared/types';
 import { STUDY_CONFIG, LLM_CONFIG } from '../../../shared/utils/constants';
+import { sanitizeXml } from '../../../shared/utils/security';
 import axios from 'axios';
 
 // Import environment variables (from .env file)
@@ -264,13 +265,10 @@ function parseDocxXml(xml: string): string {
   // Join with spaces and clean up
   let text = textContent.join(' ');
 
-  // Handle paragraph breaks - look for </w:p> tags
-  text = xml.replace(/<\/w:p>/g, '\n\n')
-    .replace(/<w:t[^>]*>([^<]*)<\/w:t>/g, '$1')
-    .replace(/<[^>]+>/g, '')
-    .replace(/\s+/g, ' ')
-    .replace(/\n\s+/g, '\n')
-    .trim();
+  // Sanitize XML content - remove all tags and decode entities properly
+  // This prevents incomplete sanitization vulnerabilities (CodeQL alert #3)
+  // Use proper XML sanitization instead of multiple replace() calls
+  text = sanitizeXml(xml);
 
   // If regex approach didn't work well, use simple approach
   if (text.length < 50 && textContent.length > 0) {

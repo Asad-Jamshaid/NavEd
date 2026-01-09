@@ -94,6 +94,17 @@ const extractPolylines = (children: React.ReactNode): PolylineProps[] => {
   return polylines;
 };
 
+// Helper function to escape HTML for safe insertion into HTML strings
+// Prevents XSS attacks by escaping all HTML special characters
+const escapeHtml = (str: string): string => {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 // Generate Leaflet HTML
 const generateMapHTML = (
   center: Coordinate,
@@ -103,7 +114,11 @@ const generateMapHTML = (
   showUserLocation: boolean,
   primaryColor: string
 ) => {
-  const markersJS = markers.map((m, i) => `
+  const markersJS = markers.map((m, i) => {
+    // Properly escape HTML to prevent XSS attacks (CodeQL alert #1 and #2)
+    const safeTitle = escapeHtml(m.title || 'Location');
+    const safeDescription = m.description ? escapeHtml(m.description) : '';
+    return `
     (function() {
       var icon = L.divIcon({
         className: 'custom-marker',
@@ -114,7 +129,7 @@ const generateMapHTML = (
       });
       L.marker([${m.coordinate.latitude}, ${m.coordinate.longitude}], { icon: icon })
         .addTo(map)
-        .bindPopup('<b>${(m.title || 'Location').replace(/'/g, "\\'")}</b>${m.description ? '<br>' + m.description.replace(/'/g, "\\'") : ''}')
+        .bindPopup('<b>${safeTitle}</b>${safeDescription ? '<br>' + safeDescription : ''}')
         .on('click', function() {
           window.ReactNativeWebView.postMessage(JSON.stringify({
             type: 'markerPress',
