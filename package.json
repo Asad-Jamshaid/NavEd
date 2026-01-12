@@ -87,7 +87,7 @@
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.34.0",
     "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-react-native": "^4.1.0",
+    "eslint-plugin-react-native": "^5.0.0",
     "jest": "^29.7.0",
     "jest-expo": "~54.0.16",
     "mammoth": "^1.11.0",
